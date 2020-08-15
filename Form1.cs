@@ -32,7 +32,8 @@ namespace Ron_BAN
 
 		~MainForm()
 		{
-			m_wc.Dispose();
+			if (m_wc != null) { m_wc.Dispose(); }
+			Drrr_Proxy.Dispose();
 		}
 
 		private void OnBtnClk_connect(object sender, EventArgs e)
@@ -84,20 +85,39 @@ namespace Ron_BAN
 
 		private void m_btn_test_Click(object sender, EventArgs e)
 		{
-/*
-			using (var sr = new StreamReader(@"Z:drrr.html", Encoding.GetEncoding("Shift_JIS")))
+			/*
+						using (var sr = new StreamReader(@"Z:drrr.html", Encoding.GetEncoding("Shift_JIS")))
+						{
+							var dom_document = new HtmlParser().ParseDocument(sr.ReadToEnd());
+						}
+			*/
+			try
 			{
-				var dom_document = new HtmlParser().ParseDocument(sr.ReadToEnd());
+				var drrr_socket = new DrrrClient();
+
+				string index_html = drrr_socket.Get_index_html();
+
+//				m_tbox_status.Text += index_html;
 			}
-*/
+			catch (Exception ex)
+			{
+				m_tbox_status.Text += ex;
+			}
 		}
 
 		private void m_btn_test_2_Click(object sender, EventArgs e)
 		{
 			try
 			{
-				var drrr_socket = new DrrrSocket();
-				drrr_socket.GetHome_html();
+/*
+				*string str_test = "aladdin:opensesame";
+				Program.WriteStBox(str_test + "\r\n");
+				string str_cnvtd = Convert.ToBase64String(Encoding.UTF8.GetBytes(str_test));
+				Program.WriteStBox(str_cnvtd + "\r\n");
+*/
+				Drrr_Proxy.Init();
+				Drrr_Proxy.Get_index_html(); ;
+//				m_tbox_status.Text += Drrr_Proxy.Get_index_html();
 			}
 			catch (Exception ex)
 			{
@@ -141,51 +161,40 @@ namespace Ron_BAN
 		}
 	}
 
-	public class DrrrSocket
+	public class DrrrClient
 	{
 		const int SIZE_BUF_RECV_WND = 8192;				// 8 kbytes（ウィンドウサイズ）
 		const int SIZE_MEM_STREAM_RECV = 80 * 1024;  // 80 kbytes
-		int m_size_buf_send = 4096;			 // 4 kbytes
+		int m_size_buf_send = 4096;          // 4 kbytes
 
 
-		Socket m_sckt = null;
+		TcpClient m_TcpClient = null;
+		NetworkStream m_ns_drrr = null;
+
 		Byte[] m_buf_recv_wnd = new Byte[SIZE_BUF_RECV_WND];
 		MemoryStream m_mem_stream_recv = new MemoryStream(SIZE_MEM_STREAM_RECV);
 		Byte[] m_buf_send = null;
 
-		public DrrrSocket()
+		public DrrrClient()
 		{
 			m_buf_send = new byte[m_size_buf_send];
 
-			Program.WriteStBox("--- drrrkari.com アドレス情報\r\n");
-			IPHostEntry host_entry = Dns.GetHostEntry("drrrkari.com");
-
-			foreach (IPAddress ip_addr in host_entry.AddressList)
-			{
-				IPEndPoint ip_ep = new IPEndPoint(ip_addr, 80);
-				Socket temp_sckt = new Socket(ip_ep.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
-
-				temp_sckt.Connect(ip_ep);
-				if (temp_sckt.Connected)
-				{
-					Program.WriteStBox(ip_addr.ToString() + " -> ○ 接続成功\r\n");
-					m_sckt = temp_sckt;
-					break;
-				}
-
-				Program.WriteStBox(ip_addr.ToString() + " -> ☓ 接続失敗\r\n");
-			}
+			Program.WriteStBox("--- drrrkari.com 接続開始\r\n");
+			m_TcpClient = new TcpClient("drrrkari.com", 80);
 		}
 
-		~DrrrSocket()
+		~DrrrClient()
 		{
-			if (m_sckt != null) { m_sckt.Close(); }
+			if (m_ns_drrr != null) { m_ns_drrr.Dispose(); }
+			if (m_TcpClient != null) { m_TcpClient.Close(); }
 		}
 
-		public void GetHome_html()
+		public string Get_index_html()
 		{
-			if (m_sckt == null)
-			{ throw new Exception("!!! 接続が確率できませんでした。（m_sckt == null）"); }
+			if (m_TcpClient.Connected == false)
+			{ throw new Exception("!!! m_TcpClient.Connected == false on DrrrClient.GetHome_html()"); }
+
+			m_ns_drrr = m_TcpClient.GetStream();
 
 			string str_req = "GET http://drrrkari.com/ HTTP/1.1\r\n" + "Host: drrrkari.com\r\n"
 									+ "Connection: keep-alive\r\n\r\n";
@@ -195,33 +204,23 @@ namespace Ron_BAN
 			int bytes_wrtn = Encoding.UTF8.GetBytes(str_req, 0, str_req.Length, m_buf_send, 0);
 
 			if (bytes_send != bytes_wrtn)
-			{ throw new Exception("!!! bytes_send != bytes_wrtn となりました。");  }
+			{ throw new Exception("!!! bytes_send != bytes_wrtn となりました。"); }
 
-			Program.WriteStBox($"bytes_send: {bytes_send}, bytes_wrtn: {bytes_wrtn}\r\n");
+			m_ns_drrr.Write(m_buf_send, 0, bytes_send);
+			Program.WriteStBox("--- index.html の取得を要求しました。\r\n");
 
 			m_mem_stream_recv.Position = 0;
 
-			m_sckt.Send(m_buf_send, bytes_send, 0);
-
-			int bytes = m_sckt.Receive(m_buf_recv_wnd, SIZE_BUF_RECV_WND, 0);
-			Program.WriteStBox($"Receive: {bytes}");
-			m_mem_stream_recv.Write(m_buf_recv_wnd, 0, bytes);
+			do {
+				int bytes_read = m_ns_drrr.Read(m_buf_recv_wnd, 0, SIZE_BUF_RECV_WND);
+				Program.WriteStBox($"+++ Receive: {bytes_read}\r\n");
+				m_mem_stream_recv.Write(m_buf_recv_wnd, 0, bytes_read);
+			}
+			while (m_ns_drrr.DataAvailable);
 
 			m_mem_stream_recv.Position = 0;
 			var sr = new StreamReader(m_mem_stream_recv, Encoding.UTF8);
-			Program.WriteStBox(sr.ReadToEnd());
-
-			/*
-						int bytes;
-						do
-						{
-							bytes = m_sckt.Receive(m_buf_recv_wnd, SIZE_BUF_RECEIVE_WND, 0);
-							m_sb_recv.Append(Encoding.UTF8.GetString(m_buf_recv_wnd, 0, bytes));
-						}
-						while (bytes > 0);
-
-						Program.WriteStBox(m_sb_recv.ToString());
-			*/
+			return sr.ReadToEnd();
 		}
 	}
 }
