@@ -140,7 +140,21 @@ namespace Ron_BAN
 			Show_HttpHeader(m_wc.Headers);
 
 			string str_reply = m_wc.UploadString("http://drrrkari.com/logout/", "");
-			Program.WriteStBox(str_reply);
+//			Program.WriteStBox(str_reply);
+		}
+
+		private void m_btn_issue_Click(object sender, EventArgs e)
+		{
+			Program.WriteStBox("--- 発言を実行します。\r\n");
+
+			// Ajax用ヘッダ
+			SetReqHeader_Ajax(m_wc.Headers, m_str_Cookie);
+			Program.WriteStBox($"--- リクエストヘッダ\r\n");
+			Show_HttpHeader(m_wc.Headers);
+
+			string str_form = "message=test&valid=1";
+			string str_reply = m_wc.UploadString("http://drrrkari.com/room/?ajax=1", str_form);
+//			Program.WriteStBox(str_reply);
 		}
 
 		void m_btn_test_Click(object sender, EventArgs e)
