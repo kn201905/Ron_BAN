@@ -80,8 +80,9 @@ namespace Ron_BAN
 			Program.WriteStBox("--- ログイン実行\r\n");
 
 			// Form の設定
+			string str_user_name = WebUtility.UrlEncode("ガーディアン");
 			string str_form;
-			str_form = $"language=ja-JP&icon=setton&name=guardian&login=login&token={str_token}";
+			str_form = $"language=ja-JP&icon=setton&name={str_user_name}&login=login&token={str_token}";
 
 			// ログイン処理
 			string str_reply;
@@ -111,7 +112,7 @@ namespace Ron_BAN
 			Show_HttpHeader(m_wc.Headers);
 
 			// 部屋の作成
-			string str_room_name = "testroom";
+			string str_room_name = WebUtility.UrlEncode("テスト部屋");
 			str_form = $"name={str_room_name}&type=zatsu&limit=5&knock=0&password=&image=1&language=ja-JP&submit=submit";
 			str_reply = m_wc.UploadString("http://drrrkari.com/create_room/", str_form);
 		}
@@ -152,7 +153,8 @@ namespace Ron_BAN
 			Program.WriteStBox($"--- リクエストヘッダ\r\n");
 			Show_HttpHeader(m_wc.Headers);
 
-			string str_form = "message=test&valid=1";
+			string str_issue = "発言実行テスト。test message";
+			string str_form = $"message={WebUtility.UrlEncode(str_issue)}&valid=1";
 			string str_reply = m_wc.UploadString("http://drrrkari.com/room/?ajax=1", str_form);
 //			Program.WriteStBox(str_reply);
 		}
