@@ -38,6 +38,8 @@ namespace Ron_BAN
 
 		private void OnBtnClk_connect(object sender, EventArgs e)
 		{
+			// ------------------------------------------------------------
+			// index.html の取得
 			Program.WriteStBox("--- GET 開始\r\n");
 
 			string str_GET = m_wc.DownloadString("http://drrrkari.com/");
@@ -66,9 +68,9 @@ namespace Ron_BAN
 			string str_token = dom_token.GetAttribute("value");
 			Program.WriteStBox($"--- token 情報：\r\n{str_token}\r\n");
 
-			// リクエストヘッダの設定
+			// ------------------------------------------------------------
+			// ログイン処理
 			SetReqHeader(m_wc.Headers, m_str_Cookie);
-
 			Program.WriteStBox($"--- リクエストヘッダ\r\n");
 			Show_HttpHeader(m_wc.Headers);
 			
@@ -80,7 +82,22 @@ namespace Ron_BAN
 			string str_form = $"language=ja-JP&icon=setton&name=guardian&login=login&token={str_token}";
 
 			// ログイン処理
-			string str_reply = m_wc.UploadString("http://drrrkari.com/", str_form);
+			string str_reply;
+			str_reply = m_wc.UploadString("http://drrrkari.com/", str_form);
+			// Program.WriteStBox($"+++ リクエスト結果\r\n{str_reply}\r\n");
+
+			// ------------------------------------------------------------
+			// 部屋の作成処理
+			SetReqHeader(m_wc.Headers, m_str_Cookie);
+			Program.WriteStBox($"--- リクエストヘッダ\r\n");
+			Show_HttpHeader(m_wc.Headers);
+
+			m_tbox_status.Text += "--- 部屋の作成処理前に２秒間待機します。\r\n";
+			Task_Delay(2000);
+			m_tbox_status.Text += "--- 部屋の作成実行\r\n";
+
+			// 作成URLへ移行
+			str_reply = m_wc.UploadString("http://drrrkari.com/create_room/", "");
 			Program.WriteStBox($"+++ リクエスト結果\r\n{str_reply}\r\n");
 		}
 
@@ -150,6 +167,7 @@ namespace Ron_BAN
 
 		private static void SetReqHeader(WebHeaderCollection req_headers, string str_Cookie)
 		{
+			req_headers.Clear();
 			req_headers.Add("Host: drrrkari.com");
 			req_headers.Add("Content-Type: application/x-www-form-urlencoded");
 			req_headers.Add("Origin: http://drrrkari.com");
