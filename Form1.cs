@@ -37,7 +37,7 @@ namespace Ron_BAN
 			Drrr_Proxy.Dispose();
 		}
 
-		private async void OnBtnClk_connect(object sender, EventArgs e)
+		async void OnBtnClk_connect(object sender, EventArgs e)
 		{
 			// ------------------------------------------------------------
 			// index.html の取得
@@ -127,6 +127,19 @@ namespace Ron_BAN
 
 			string str_form = "logout=logout";
 			string str_reply = m_wc.UploadString("http://drrrkari.com/room/?ajax=1", str_form);
+			// Program.WriteStBox(str_reply);
+		}
+
+		void m_btn_logout_Click(object sender, EventArgs e)
+		{
+			Program.WriteStBox("--- ログアウトを実行します。\r\n");
+
+			// 通常ヘッダ
+			SetReqHeader_Ajax(m_wc.Headers, m_str_Cookie);
+			Program.WriteStBox($"--- リクエストヘッダ\r\n");
+			Show_HttpHeader(m_wc.Headers);
+
+			string str_reply = m_wc.UploadString("http://drrrkari.com/logout/", "");
 			Program.WriteStBox(str_reply);
 		}
 
@@ -151,7 +164,7 @@ namespace Ron_BAN
 			}
 		}
 
-		private void m_btn_test_2_Click(object sender, EventArgs e)
+		void m_btn_test_2_Click(object sender, EventArgs e)
 		{
 			try
 			{
@@ -164,7 +177,7 @@ namespace Ron_BAN
 			}
 		}
 
-		private static string GetCookieStr(WebHeaderCollection res_headers)
+		static string GetCookieStr(WebHeaderCollection res_headers)
 		{
 			string cookie_cf = null;
 			string cookie_drrr = null;
@@ -188,11 +201,11 @@ namespace Ron_BAN
 			return "Cookie: __cfduid=" + cookie_cf + "; durarara-like-chat1=" + cookie_drrr;
 		}
 
-		private static void SetReqHeader(WebHeaderCollection req_headers, string str_Cookie)
+		static void SetReqHeader(WebHeaderCollection req_headers, string str_Cookie)
 		{
 			req_headers.Clear();
 			req_headers.Add("Host: drrrkari.com");
-			req_headers.Add("Content-Type: application/x-www-form-urlencoded; charset=UTF-8");
+			req_headers.Add("Content-Type: application/x-www-form-urlencoded");
 			req_headers.Add("Origin: http://drrrkari.com");
 //			req_headers.Add("Connection: keep-alive");
 			req_headers.Add("Referer: http://drrrkari.com/");
@@ -200,11 +213,11 @@ namespace Ron_BAN
 //			req_headers.Add("Upgrade-Insecure-Requests: 1");
 		}
 
-		private static void SetReqHeader_Ajax(WebHeaderCollection req_headers, string str_Cookie)
+		static void SetReqHeader_Ajax(WebHeaderCollection req_headers, string str_Cookie)
 		{
 			req_headers.Clear();
 			req_headers.Add("Host: drrrkari.com");
-			req_headers.Add("Content-Type: application/x-www-form-urlencoded");
+			req_headers.Add("Content-Type: application/x-www-form-urlencoded; charset=UTF-8");
 			req_headers.Add("X-Requested-With: XMLHttpRequest");
 			req_headers.Add("Origin: http://drrrkari.com");
 			// req_headers.Add("Connection: keep-alive");
@@ -212,7 +225,7 @@ namespace Ron_BAN
 			req_headers.Add(str_Cookie);
 		}
 
-		private static void Show_HttpHeader(WebHeaderCollection http_header)
+		static void Show_HttpHeader(WebHeaderCollection http_header)
 		{
 			for (int i = 0; i < http_header.Count; i++)
 			{
@@ -301,3 +314,4 @@ namespace Ron_BAN
 		}
 	}
 }
+
