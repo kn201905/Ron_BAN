@@ -38,16 +38,17 @@ namespace Ron_BAN
 
 		private void OnBtnClk_connect(object sender, EventArgs e)
 		{
-			m_tbox_status.Text += "--- 接続開始\r\n";
+			Program.WriteStBox("--- GET 開始\r\n");
 
-			byte[] buf_DL = m_wc.DownloadData("http://drrrkari.com/");
+			string str_GET = m_wc.DownloadString("http://drrrkari.com/");
+			// Program.WriteStBox(str_GET);
 
 			// クッキーの取得
 			m_str_Cookie = GetCookieStr(m_wc.ResponseHeaders);
-			m_tbox_status.Text += $"--- Cookie 情報：\r\n{m_str_Cookie}\r\n";
+			Program.WriteStBox($"--- Cookie 情報：\r\n{m_str_Cookie}\r\n");
 
 			// token の取得
-			var dom_document = new HtmlParser().ParseDocument(Encoding.UTF8.GetString(buf_DL));
+			var dom_document = new HtmlParser().ParseDocument(str_GET);
 
 			AngleSharp.Dom.IElement dom_token = null;
 			foreach (var dom_input in dom_document.GetElementById("loginForm").GetElementsByTagName("input"))
@@ -63,45 +64,50 @@ namespace Ron_BAN
 			{ throw new Exception("!!! token の取得に失敗しました。"); }
 
 			string str_token = dom_token.GetAttribute("value");
-			m_tbox_status.Text += $"--- token 情報：\r\n{str_token}\r\n";
+			Program.WriteStBox($"--- token 情報：\r\n{str_token}\r\n");
 
 			// リクエストヘッダの設定
 			SetReqHeader(m_wc.Headers, m_str_Cookie);
 
-			m_tbox_status.Text += "--- リクエストヘッダ\r\n";
-			WebHeaderCollection wc_headers = m_wc.Headers;
-			for (int i = 0; i < wc_headers.Count; i++)
-			{
-				m_tbox_status.Text += wc_headers.GetKey(i) + " = " + wc_headers.Get(i) + "\r\n";
-			}
+			Program.WriteStBox($"--- リクエストヘッダ\r\n");
+			Show_HttpHeader(m_wc.Headers);
+			
+			m_tbox_status.Text += "--- ログイン前に２秒間待機します。\r\n";
+			Task_Delay(2000);
+			m_tbox_status.Text += "--- ログイン実行\r\n";
 
 			// Form の設定
-			string str_form = $"language=ja-JP&icon=setton&name=master&login=login&token={str_token}";
+			string str_form = $"language=ja-JP&icon=setton&name=guardian&login=login&token={str_token}";
 
 			// ログイン処理
 			string str_reply = m_wc.UploadString("http://drrrkari.com/", str_form);
-			m_tbox_status.Text += $"+++ リクエスト結果\r\n{str_reply}\r\n";
+			Program.WriteStBox($"+++ リクエスト結果\r\n{str_reply}\r\n");
+		}
+
+		static void Task_Delay(int msec)
+		{
+			var task = Task.Run(async () => { await Task.Delay(msec); });
+			task.Wait();
 		}
 
 		private void m_btn_test_Click(object sender, EventArgs e)
 		{
 			/*
-						using (var sr = new StreamReader(@"Z:drrr.html", Encoding.GetEncoding("Shift_JIS")))
-						{
-							var dom_document = new HtmlParser().ParseDocument(sr.ReadToEnd());
-						}
+			using (var sr = new StreamReader(@"Z:drrr.html", Encoding.GetEncoding("Shift_JIS")))
+			{
+				var dom_document = new HtmlParser().ParseDocument(sr.ReadToEnd());
+			}
 			*/
 			try
 			{
 				var drrr_socket = new DrrrClient();
-
 				string index_html = drrr_socket.Get_index_html();
 
 //				m_tbox_status.Text += index_html;
 			}
 			catch (Exception ex)
 			{
-				m_tbox_status.Text += ex;
+				Program.WriteStBox(ex.ToString());
 			}
 		}
 
@@ -109,19 +115,12 @@ namespace Ron_BAN
 		{
 			try
 			{
-/*
-				*string str_test = "aladdin:opensesame";
-				Program.WriteStBox(str_test + "\r\n");
-				string str_cnvtd = Convert.ToBase64String(Encoding.UTF8.GetBytes(str_test));
-				Program.WriteStBox(str_cnvtd + "\r\n");
-*/
 				Drrr_Proxy.Init();
 				Drrr_Proxy.Get_index_html(); ;
-//				m_tbox_status.Text += Drrr_Proxy.Get_index_html();
 			}
 			catch (Exception ex)
 			{
-				m_tbox_status.Text += ex;
+				Program.WriteStBox(ex.ToString());
 			}
 		}
 
@@ -157,70 +156,96 @@ namespace Ron_BAN
 //			req_headers.Add("Connection: keep-alive");
 			req_headers.Add("Referer: http://drrrkari.com/");
 			req_headers.Add(str_Cookie);
-			req_headers.Add("Upgrade-Insecure-Requests: 1");
+//			req_headers.Add("Upgrade-Insecure-Requests: 1");
+		}
+
+		private static void Show_HttpHeader(WebHeaderCollection http_header)
+		{
+			for (int i = 0; i < http_header.Count; i++)
+			{
+				Program.WriteStBox($"{http_header.GetKey(i)} = {http_header.Get(i)}\r\n");
+			}
 		}
 	}
 
-	public class DrrrClient
+	static class Drrr_Proxy
 	{
-		const int SIZE_BUF_RECV_WND = 8192;				// 8 kbytes（ウィンドウサイズ）
+		const int SIZE_BUF_RECV_WND = 8192;          // 8 kbytes（ウィンドウサイズ）
 		const int SIZE_MEM_STREAM_RECV = 80 * 1024;  // 80 kbytes
-		int m_size_buf_send = 4096;          // 4 kbytes
+		static int ms_size_buf_send = 4096;          // 4 kbytes
 
 
-		TcpClient m_TcpClient = null;
-		NetworkStream m_ns_drrr = null;
+		static TcpClient ms_Proxy_TcpClient = null;
+		static NetworkStream ms_ns_proxy = null;
 
-		Byte[] m_buf_recv_wnd = new Byte[SIZE_BUF_RECV_WND];
-		MemoryStream m_mem_stream_recv = new MemoryStream(SIZE_MEM_STREAM_RECV);
-		Byte[] m_buf_send = null;
+		static Byte[] ms_buf_recv_wnd = new Byte[SIZE_BUF_RECV_WND];
+		static MemoryStream ms_mem_stream_recv = new MemoryStream(SIZE_MEM_STREAM_RECV);
+		static Byte[] ms_buf_send = null;
 
-		public DrrrClient()
+		static public void Init()
 		{
-			m_buf_send = new byte[m_size_buf_send];
+			Program.WriteStBox("--- Drrr_Proxy.Init()\r\n");
 
-			Program.WriteStBox("--- drrrkari.com 接続開始\r\n");
-			m_TcpClient = new TcpClient("drrrkari.com", 80);
+			ms_buf_send = new byte[ms_size_buf_send];
+
+			ms_Proxy_TcpClient = new TcpClient(Program.Get_ProxyHost(), Program.Get_ProxyPort());
 		}
 
-		~DrrrClient()
+		static public void Dispose()
 		{
-			if (m_ns_drrr != null) { m_ns_drrr.Dispose(); }
-			if (m_TcpClient != null) { m_TcpClient.Close(); }
+			if (ms_ns_proxy != null) { ms_ns_proxy.Dispose(); }
+			if (ms_Proxy_TcpClient != null) { ms_Proxy_TcpClient.Close(); }
 		}
 
-		public string Get_index_html()
+		static public string Get_index_html()
 		{
-			if (m_TcpClient.Connected == false)
+			if (ms_Proxy_TcpClient.Connected == false)
 			{ throw new Exception("!!! m_TcpClient.Connected == false on DrrrClient.GetHome_html()"); }
 
-			m_ns_drrr = m_TcpClient.GetStream();
+			ms_ns_proxy = ms_Proxy_TcpClient.GetStream();
 
-			string str_req = "GET http://drrrkari.com/ HTTP/1.1\r\n" + "Host: drrrkari.com\r\n"
-									+ "Connection: keep-alive\r\n\r\n";
+			string str_req = "GET http://drrrkari.com HTTP/1.1\r\n"
+				+ "Host: drrrkari.com\r\n"
+				+ "Connection: keep-alive\r\n"
+				+ "Proxy-Connection: keep-alive\r\n"
+				+ "Proxy-Authenticate: Basic realm=\"proxy\"\r\n"
+				+ "Proxy-Authorization: basic " + Convert.ToBase64String(Encoding.UTF8.GetBytes(Program.Get_ProxyAuthStr()))
+				+ "\r\n\r\n";
 
 			int bytes_send = Encoding.UTF8.GetByteCount(str_req);
-			if (bytes_send > m_size_buf_send) { m_buf_send = new byte[m_size_buf_send + 256]; }
-			int bytes_wrtn = Encoding.UTF8.GetBytes(str_req, 0, str_req.Length, m_buf_send, 0);
+			if (bytes_send > ms_size_buf_send)
+			{
+				ms_size_buf_send = bytes_send + 256;
+				ms_buf_send = new byte[ms_size_buf_send];
+			}
+			int bytes_wrtn = Encoding.UTF8.GetBytes(str_req, 0, str_req.Length, ms_buf_send, 0);
 
 			if (bytes_send != bytes_wrtn)
 			{ throw new Exception("!!! bytes_send != bytes_wrtn となりました。"); }
 
-			m_ns_drrr.Write(m_buf_send, 0, bytes_send);
-			Program.WriteStBox("--- index.html の取得を要求しました。\r\n");
+			Program.WriteStBox("--- proxy の接続要求を始めます。\r\n");
+			ms_ns_proxy.Write(ms_buf_send, 0, bytes_send);
 
-			m_mem_stream_recv.Position = 0;
+			ms_mem_stream_recv.Position = 0;
+			do
+			{
+				int bytes_read = ms_ns_proxy.Read(ms_buf_recv_wnd, 0, SIZE_BUF_RECV_WND);
+				Program.WriteStBox($"+++ Receive: {bytes_read} bytes\r\n");
+				ms_mem_stream_recv.Write(ms_buf_recv_wnd, 0, bytes_read);
+			} while (ms_Proxy_TcpClient.Available > 0);
+			//			} while (ms_ns_proxy.DataAvailable);
 
-			do {
-				int bytes_read = m_ns_drrr.Read(m_buf_recv_wnd, 0, SIZE_BUF_RECV_WND);
-				Program.WriteStBox($"+++ Receive: {bytes_read}\r\n");
-				m_mem_stream_recv.Write(m_buf_recv_wnd, 0, bytes_read);
-			}
-			while (m_ns_drrr.DataAvailable);
+			int bytes_ = ms_ns_proxy.Read(ms_buf_recv_wnd, 0, SIZE_BUF_RECV_WND);
+			Program.WriteStBox($"+++ last: {bytes_} bytes\r\n");
 
-			m_mem_stream_recv.Position = 0;
-			var sr = new StreamReader(m_mem_stream_recv, Encoding.UTF8);
-			return sr.ReadToEnd();
+			Program.WriteStBox($"+++ Connected: {ms_Proxy_TcpClient.Connected.ToString()}\r\n");
+
+			ms_mem_stream_recv.Position = 0;
+			var sr = new StreamReader(ms_mem_stream_recv, Encoding.UTF8);
+			Program.WriteStBox(sr.ReadToEnd());
+
+			return "--- OK\r\n";
 		}
 	}
 }
+
