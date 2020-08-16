@@ -10,6 +10,7 @@ using System.Windows.Forms;
 using System.Net;
 using System.Net.Sockets;
 using System.IO;
+using System.Threading;
 
 using AngleSharp.Html.Parser;
 
@@ -36,7 +37,7 @@ namespace Ron_BAN
 			Drrr_Proxy.Dispose();
 		}
 
-		private void OnBtnClk_connect(object sender, EventArgs e)
+		private async void OnBtnClk_connect(object sender, EventArgs e)
 		{
 			// ------------------------------------------------------------
 			// index.html の取得
@@ -73,41 +74,63 @@ namespace Ron_BAN
 			SetReqHeader(m_wc.Headers, m_str_Cookie);
 			Program.WriteStBox($"--- リクエストヘッダ\r\n");
 			Show_HttpHeader(m_wc.Headers);
-			
-			m_tbox_status.Text += "--- ログイン前に２秒間待機します。\r\n";
-			Task_Delay(2000);
-			m_tbox_status.Text += "--- ログイン実行\r\n";
+
+			Program.WriteStBox("--- ログイン前に２秒間待機します。\r\n");
+			await Task.Delay(2000);
+			Program.WriteStBox("--- ログイン実行\r\n");
 
 			// Form の設定
-			string str_form = $"language=ja-JP&icon=setton&name=guardian&login=login&token={str_token}";
+			string str_form;
+			str_form = $"language=ja-JP&icon=setton&name=guardian&login=login&token={str_token}";
 
 			// ログイン処理
 			string str_reply;
 			str_reply = m_wc.UploadString("http://drrrkari.com/", str_form);
-			// Program.WriteStBox($"+++ リクエスト結果\r\n{str_reply}\r\n");
+//			Program.WriteStBox($"+++ リクエスト結果\r\n{str_reply}\r\n");
 
 			// ------------------------------------------------------------
 			// 部屋の作成処理
+			Program.WriteStBox("--- 部屋の作成ページ移行前に２秒間待機します。\r\n");
+			await Task.Delay(2000);
+			Program.WriteStBox("--- 部屋の作成ページへ移行\r\n");
+
+			SetReqHeader(m_wc.Headers, m_str_Cookie);
+			Program.WriteStBox($"--- リクエストヘッダ\r\n");
+			Show_HttpHeader(m_wc.Headers);
+			
+			// 作成URLへ移行
+			str_reply = m_wc.UploadString("http://drrrkari.com/create_room/", "");
+			// Program.WriteStBox($"+++ リクエスト結果\r\n{str_reply}\r\n");
+
+			Program.WriteStBox("--- 部屋の作成リクエスト発行前に２秒間待機します。\r\n");
+			await Task.Delay(2000);
+			Program.WriteStBox("--- 部屋の作成リクエスト発行\r\n");
+
 			SetReqHeader(m_wc.Headers, m_str_Cookie);
 			Program.WriteStBox($"--- リクエストヘッダ\r\n");
 			Show_HttpHeader(m_wc.Headers);
 
-			m_tbox_status.Text += "--- 部屋の作成処理前に２秒間待機します。\r\n";
-			Task_Delay(2000);
-			m_tbox_status.Text += "--- 部屋の作成実行\r\n";
-
-			// 作成URLへ移行
-			str_reply = m_wc.UploadString("http://drrrkari.com/create_room/", "");
-			Program.WriteStBox($"+++ リクエスト結果\r\n{str_reply}\r\n");
+			// 部屋の作成
+			string str_room_name = "testroom";
+			str_form = $"name={str_room_name}&type=zatsu&limit=5&knock=0&password=&image=1&language=ja-JP&submit=submit";
+			str_reply = m_wc.UploadString("http://drrrkari.com/create_room/", str_form);
 		}
 
-		static void Task_Delay(int msec)
+		void m_btn_leave_rm_Click(object sender, EventArgs e)
 		{
-			var task = Task.Run(async () => { await Task.Delay(msec); });
-			task.Wait();
+			Program.WriteStBox("--- 退室を実行します。\r\n");
+
+			// Ajax用ヘッダ
+			SetReqHeader_Ajax(m_wc.Headers, m_str_Cookie);
+			Program.WriteStBox($"--- リクエストヘッダ\r\n");
+			Show_HttpHeader(m_wc.Headers);
+
+			string str_form = "logout=logout";
+			string str_reply = m_wc.UploadString("http://drrrkari.com/room/?ajax=1", str_form);
+			Program.WriteStBox(str_reply);
 		}
 
-		private void m_btn_test_Click(object sender, EventArgs e)
+		void m_btn_test_Click(object sender, EventArgs e)
 		{
 			/*
 			using (var sr = new StreamReader(@"Z:drrr.html", Encoding.GetEncoding("Shift_JIS")))
@@ -169,12 +192,24 @@ namespace Ron_BAN
 		{
 			req_headers.Clear();
 			req_headers.Add("Host: drrrkari.com");
-			req_headers.Add("Content-Type: application/x-www-form-urlencoded");
+			req_headers.Add("Content-Type: application/x-www-form-urlencoded; charset=UTF-8");
 			req_headers.Add("Origin: http://drrrkari.com");
 //			req_headers.Add("Connection: keep-alive");
 			req_headers.Add("Referer: http://drrrkari.com/");
 			req_headers.Add(str_Cookie);
 //			req_headers.Add("Upgrade-Insecure-Requests: 1");
+		}
+
+		private static void SetReqHeader_Ajax(WebHeaderCollection req_headers, string str_Cookie)
+		{
+			req_headers.Clear();
+			req_headers.Add("Host: drrrkari.com");
+			req_headers.Add("Content-Type: application/x-www-form-urlencoded");
+			req_headers.Add("X-Requested-With: XMLHttpRequest");
+			req_headers.Add("Origin: http://drrrkari.com");
+			// req_headers.Add("Connection: keep-alive");
+			req_headers.Add("Referer: http://drrrkari.com/");
+			req_headers.Add(str_Cookie);
 		}
 
 		private static void Show_HttpHeader(WebHeaderCollection http_header)
@@ -266,4 +301,3 @@ namespace Ron_BAN
 		}
 	}
 }
-
