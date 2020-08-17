@@ -71,17 +71,6 @@ namespace Ron_BAN
 		{
 			string str_JSON = Drrr_Host.GetJSON();
 			Program.WriteStBox(str_JSON);
-/*
-			Program.WriteStBox("--- xhr を実行します。\r\n");
-
-			// Ajax用ヘッダ
-			SetReqHeader_Ajax(m_wc.Headers, m_str_Cookie);
-			Program.WriteStBox($"--- リクエストヘッダ\r\n");
-			Show_HttpHeader(m_wc.Headers);
-
-			string str_reply = m_wc.UploadString("http://drrrkari.com/ajax.php", "");
-			Program.WriteStBox(str_reply)
-*/
 		}
 
 		void m_btn_test_1_Click(object sender, EventArgs e)
