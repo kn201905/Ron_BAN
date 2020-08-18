@@ -71,7 +71,7 @@ namespace Ron_BAN
 				Program.WriteStBox($"+++ Receive: {bytes_read} bytes\r\n");
 				ms_mem_stream_recv.Write(ms_buf_recv_wnd, 0, bytes_read);
 			} while (ms_Proxy_TcpClient.Available > 0);
-			//			} while (ms_ns_proxy.DataAvailable);
+//			} while (ms_ns_proxy.DataAvailable);
 
 			int bytes_ = ms_ns_proxy.Read(ms_buf_recv_wnd, 0, SIZE_BUF_RECV_WND);
 			Program.WriteStBox($"+++ last: {bytes_} bytes\r\n");
