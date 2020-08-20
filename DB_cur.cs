@@ -159,8 +159,8 @@ namespace Ron_BAN
 	static class DB_cur
 	{
 		static StringBuilder ms_ret_sb = new StringBuilder(256);  // 初期値は後ほど調整、、、
-		enum UStt : uint { EN_ON = 1, EN_OFF = 2, EN_STAY = 3, EN_ReENT = 4, EN_NEW = 5
-								, EN_MULTI = 16, EN_Mask_MULTI = 0xf }
+		enum UStt : uint { EN_ON = 1, EN_OFF = 2, EN_STAY = 3, EN_ReENT = 4, EN_NEW = 5, EN_Mask_InOut = 0xf
+								, EN_MULTI = 16, EN_MULTI_Warned = 32 }
 
 		static List<string> msa_eip = new List<string>();
 		static List<List<string>> msa_unames =  new List<List<string>>();
@@ -220,8 +220,8 @@ namespace Ron_BAN
 			ms_ret_sb.Clear();
 			for (int idx = msa_ustt.Count; --idx >= 0; )
 			{
-				UStt ustt = msa_ustt[idx];  // ustt に一時保存
-				switch (ustt & UStt.EN_Mask_MULTI)
+				UStt ustt_old = msa_ustt[idx];  // ustt の一時保存
+				switch (ustt_old & UStt.EN_Mask_InOut)
 				{
 				case UStt.EN_ON:
 					msa_ustt[idx] = UStt.EN_OFF;
@@ -242,7 +242,10 @@ namespace Ron_BAN
 					break;
 				}
 
-				if ((ustt & UStt.EN_MULTI) == UStt.EN_MULTI)
+				if ((ustt_old & UStt.EN_MULTI) == UStt.EN_MULTI)
+				{
+				}
+				else
 				{
 				}
 			}
@@ -311,10 +314,11 @@ namespace Ron_BAN
 			else
 			{
 				// 現セッションで登録済みの eip
-				switch (msa_ustt[eidx] & UStt.EN_Mask_MULTI)
+				UStt ustt_multi_warned = msa_ustt[eidx] & UStt.EN_MULTI_Warned;
+				switch (msa_ustt[eidx] & UStt.EN_Mask_InOut)
 				{
 				case UStt.EN_ON:
-					msa_ustt[eidx] = UStt.EN_STAY;
+					msa_ustt[eidx] = UStt.EN_STAY | ustt_multi_warned;
 					break;
 
 				case UStt.EN_OFF:
@@ -322,7 +326,7 @@ namespace Ron_BAN
 					break;
 				
 				default:
-					msa_ustt[eidx] |= UStt.EN_MULTI;
+					msa_ustt[eidx] |= UStt.EN_MULTI | ustt_multi_warned;
 					break;
 				}
 
