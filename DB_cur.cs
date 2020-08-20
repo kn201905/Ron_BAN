@@ -220,6 +220,8 @@ namespace Ron_BAN
 			ms_ret_sb.Clear();
 			for (int idx = msa_ustt.Count; --idx >= 0; )
 			{
+				bool b_notify = false;  // 報告メッセージを返すかどうかのフラグ
+
 				UStt ustt_old = msa_ustt[idx];  // ustt の一時保存
 				switch (ustt_old & UStt.EN_Mask_InOut)
 				{
@@ -232,24 +234,37 @@ namespace Ron_BAN
 					break;
 
 				case UStt.EN_ReENT:
-					ms_ret_sb.Append("再入室");
+					b_notify = true;
+					ms_ret_sb.Append("・再入室");
 					msa_ustt[idx] = UStt.EN_ON;
 					break;
 
 				case UStt.EN_NEW:
-					ms_ret_sb.Append("新規入室");
+					b_notify = true;
+					ms_ret_sb.Append("・新規入室");
 					msa_ustt[idx] = UStt.EN_ON;
 					break;
 				}
 
 				if ((ustt_old & UStt.EN_MULTI) == UStt.EN_MULTI)
 				{
+					// まだ未警告であれば、警告を行う
+					if ((ustt_old & UStt.EN_MULTI_Warned) == 0)
+					{
+						b_notify = true;
+						ms_ret_sb.Append("・多窓ユーザ");
+						msa_ustt[idx] |= UStt.EN_MULTI_Warned;
+					}
+					msa_ustt[idx] = UStt.EN_ON | UStt.EN_MULTI | UStt.EN_MULTI_Warned;
 				}
-				else
+
+				if (b_notify)
 				{
+					ms_ret_sb.Append(" [");
+					ms_ret_sb.Append(string.Join(", ", msa_unames[idx]));
+					ms_ret_sb.Append($"]\r\n{msa_eip[idx]}\r\n");
 				}
 			}
-
 
 			// テストコード ++++++++++++++++++++++++++++++++
 /*
@@ -330,9 +345,13 @@ namespace Ron_BAN
 					break;
 				}
 
-				// 新規の uname であれば、記録しておく
+				// 新規の uname であれば、記録しておく（多窓警告済みのフラグも下ろしておく）
 				var unames = msa_unames[eidx];
-				if (unames.IndexOf(str_uname) < 0) { unames.Add(str_uname); }
+				if (unames.IndexOf(str_uname) < 0)
+				{
+					unames.Add(str_uname);
+					msa_ustt[eidx] &= ~UStt.EN_MULTI_Warned;
+				}
 			}
 
 			UInfo_onRoom.Attend(ref uid, str_uname, ref uencip);
