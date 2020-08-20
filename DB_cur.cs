@@ -166,7 +166,7 @@ namespace Ron_BAN
 		static List<List<string>> msa_unames =  new List<List<string>>();
 		static List<UStt> msa_ustt = new List<UStt>();
 
-		public static void Set_RoomJSON(byte[] buf_utf8)
+		public static StringBuilder Set_RoomJSON(byte[] buf_utf8)
 		{
 			var json_reader = new JSON_Reader(buf_utf8);
 
@@ -262,12 +262,14 @@ namespace Ron_BAN
 				{
 					ms_ret_sb.Append(" [");
 					ms_ret_sb.Append(string.Join(", ", msa_unames[idx]));
-					ms_ret_sb.Append($"]\r\n{msa_eip[idx]}\r\n");
+					ms_ret_sb.Append($"]\r\n{msa_eip[idx]}\r\n\r\n");
 				}
 			}
 
 			// ------------------------------------------------------------
 			// talks の解析
+
+			return ms_ret_sb;
 		}
 
 		// ------------------------------------------------------------------------------------
