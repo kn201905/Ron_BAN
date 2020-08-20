@@ -266,13 +266,6 @@ namespace Ron_BAN
 				}
 			}
 
-			// テストコード ++++++++++++++++++++++++++++++++
-/*
-			foreach (UInfo_cur uinfo in uinfos_cur)
-			{
-				Program.WriteStBox(uinfo.ToString() + "\r\n");
-			}
-*/
 			// ------------------------------------------------------------
 			// talks の解析
 		}
