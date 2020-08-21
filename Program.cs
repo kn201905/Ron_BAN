@@ -6,7 +6,7 @@ namespace Ron_BAN
 {
 	static class Program
 	{
-		static System.Windows.Forms.TextBox ms_tbox_status = null;
+		static TextBox ms_tbox_status = null;
 
 		[STAThread]
 		static void Main()
@@ -19,8 +19,36 @@ namespace Ron_BAN
 			Application.Run(main_form);
 		}
 
-		public static void WriteStBox(string str)
+		public static void WriteStatus(string str)
 		{
 			ms_tbox_status.AppendText(str);
 		}
+
+		// ------------------------------------------------
+
+		public static WebProxy Get_WebProxy()
+		{
+			WebProxy web_proxy = new WebProxy("http://***");
+			web_proxy.Credentials = new NetworkCredential("***", "***");
+
+			return web_proxy;
+		}
+
+		// ------------------------------------------------
+
+		public static string Get_ProxyHost()
+		{
+			return "***";
+		}
+
+		public static int Get_ProxyPort()
+		{
+			return 0;
+		}
+
+		public static string Get_ProxyAuthStr()
+		{
+			return "***" + ":" + "***";
+		}
+	}
 }
