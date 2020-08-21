@@ -37,12 +37,12 @@ namespace Ron_BAN
 
 			// ------------------------------------------------------------
 			// index.html の取得
-			Program.WriteStBox("--- 接続処理を開始します。");
+			Program.WriteStatus("--- 接続処理を開始します。");
 			string str_GET = ms_wc.DownloadString("http://drrrkari.com/");
 
 			// クッキーの取得
 			ms_str_Cookie = GetCookieStr(ms_wc.ResponseHeaders);
-			Program.WriteStBox($"--- Cookie 情報：\r\n{ms_str_Cookie}\r\n");
+			Program.WriteStatus($"--- Cookie 情報：\r\n{ms_str_Cookie}\r\n");
 
 			// token の取得（token はログインのときのみに利用される模様）
 			var dom_document = new HtmlParser().ParseDocument(str_GET);
@@ -61,11 +61,11 @@ namespace Ron_BAN
 			{ throw new Exception("!!! token の取得に失敗しました。"); }
 
 			string str_token = dom_token.GetAttribute("value");
-			Program.WriteStBox($"--- token 情報：\r\n{str_token}\r\n");
+			Program.WriteStatus($"--- token 情報：\r\n{str_token}\r\n");
 
 			// ------------------------------------------------------------
 			// ログイン処理
-			Program.WriteStBox("--- ２秒待機後に、ログインを実行します。\r\n");
+			Program.WriteStatus("--- ２秒待機後に、ログインを実行します。\r\n");
 			await Task.Delay(2000);
 
 			SetReqHeader_normal(ms_wc.Headers, ref ms_str_Cookie);
@@ -78,11 +78,11 @@ namespace Ron_BAN
 			if (str_reply.Contains("雑談部屋") == false)
 			{ throw new Exception("!!! ログインに失敗しました。");  }
 
-			Program.WriteStBox("--- ログイン成功\r\n");
+			Program.WriteStatus("--- ログイン成功\r\n");
 
 			// ------------------------------------------------------------
 			// 部屋の作成ページへ移行
-			Program.WriteStBox("--- ２秒待機後に、部屋作成ページへ移行します。\r\n");
+			Program.WriteStatus("--- ２秒待機後に、部屋作成ページへ移行します。\r\n");
 			await Task.Delay(2000);
 
 			SetReqHeader_normal(ms_wc.Headers, ref ms_str_Cookie);
@@ -92,11 +92,11 @@ namespace Ron_BAN
 			if (str_reply.Contains("必ず選択") == false)
 			{ throw new Exception("!!! 部屋作成ページへの移行に失敗しました。"); }
 
-			Program.WriteStBox("--- 部屋作成ページへの移行成功\r\n");
+			Program.WriteStatus("--- 部屋作成ページへの移行成功\r\n");
 
 			// ------------------------------------------------------------
 			// 部屋を生成
-			Program.WriteStBox("--- ２秒待機後に、部屋作成を実行します。\r\n");
+			Program.WriteStatus("--- ２秒待機後に、部屋作成を実行します。\r\n");
 			await Task.Delay(2000);
 
 			SetReqHeader_normal(ms_wc.Headers, ref ms_str_Cookie);
@@ -109,7 +109,7 @@ namespace Ron_BAN
 			if (str_reply.Contains("入室しました") == false)
 			{ throw new Exception("!!! 部屋の作成に失敗しました。"); }
 
-			Program.WriteStBox("--- 部屋の作成に成功しました。\r\n");
+			Program.WriteStatus("--- 部屋の作成に成功しました。\r\n");
 
 			return true;
 		}
@@ -122,7 +122,7 @@ namespace Ron_BAN
 
 			// ------------------------------------------------------------
 			// 部屋から退室する
-			Program.WriteStBox("--- 退室を実行します。\r\n");
+			Program.WriteStatus("--- 退室を実行します。\r\n");
 
 			SetReqHeader_Ajax(ms_wc.Headers, ref ms_str_Cookie);
 //			Show_HttpHeader(ms_wc.Headers);
@@ -132,11 +132,11 @@ namespace Ron_BAN
 			if (str_reply.Contains("雑談部屋") == false)
 			{ throw new Exception("!!! 退室に失敗しました。"); }
 
-			Program.WriteStBox("--- 退室成功\r\n");
+			Program.WriteStatus("--- 退室成功\r\n");
 
 			// ------------------------------------------------------------
 			// ログアウトする
-			Program.WriteStBox("--- ２秒待機後に、ログアウトを実行します。\r\n");
+			Program.WriteStatus("--- ２秒待機後に、ログアウトを実行します。\r\n");
 			await Task.Delay(2000);
 
 			SetReqHeader_normal(ms_wc.Headers, ref ms_str_Cookie);
@@ -147,7 +147,7 @@ namespace Ron_BAN
 			if (str_reply.Contains("再現した") == false)
 			{ throw new Exception("!!! ログアウトに失敗しました。"); }
 
-			Program.WriteStBox("--- ログアウト成功\r\n");
+			Program.WriteStatus("--- ログアウト成功\r\n");
 
 			return true;
 		}
@@ -156,7 +156,7 @@ namespace Ron_BAN
 
 		public static void PostMsg(string msg)
 		{
-			Program.WriteStBox("--- 発言を実行します。\r\n");
+			Program.WriteStatus("--- 発言を実行します。\r\n");
 
 			SetReqHeader_Ajax(ms_wc.Headers, ref ms_str_Cookie);
 //			Show_HttpHeader(ms_wc.Headers);
@@ -167,16 +167,16 @@ namespace Ron_BAN
 		}
 
 		// ------------------------------------------------------------------------------------
+		// 取得された JSON は UTF8 のバイト列で返される
 
-		public static string GetJSON()
+		public static byte[] GetJSON()
 		{
-			Program.WriteStBox("--- JSON を取得します。\r\n");
+			Program.WriteStatus("--- JSON を取得します。\r\n");
 
 			SetReqHeader_Ajax(ms_wc.Headers, ref ms_str_Cookie);
 //			Show_HttpHeader(ms_wc.Headers);
 
-			string str_reply = ms_wc.UploadString("http://drrrkari.com/ajax.php", "");
-			return str_reply;
+			return ms_wc.UploadData("http://drrrkari.com/ajax.php", new byte[0]);
 		}
 
 		// ------------------------------------------------------------------------------------
@@ -231,10 +231,10 @@ namespace Ron_BAN
 
 		static void Show_HttpHeader(WebHeaderCollection http_header)
 		{
-			Program.WriteStBox("+++ リクエストヘッダ出力\r\n");
+			Program.WriteStatus("+++ リクエストヘッダ出力\r\n");
 			for (int i = 0; i < http_header.Count; i++)
 			{
-				Program.WriteStBox($"{http_header.GetKey(i)} = {http_header.Get(i)}\r\n");
+				Program.WriteStatus($"{http_header.GetKey(i)} = {http_header.Get(i)}\r\n");
 			}
 		}
 	}
