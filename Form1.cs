@@ -32,7 +32,7 @@ namespace Ron_BAN
 					m_btn_connect.Text = "切断";
 
 					// 接続処理開始
-					bool b_result = await Drrr_Host.Establish_cnct("ベア", "今日は暑い");
+					bool b_result = await Drrr_Host.Establish_cnct("ユーザ名", "部屋名");
 					if (b_result == false)
 					{ throw new Exception("!!! 接続処理に失敗しました。"); }
 				}
