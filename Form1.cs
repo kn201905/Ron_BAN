@@ -1,6 +1,9 @@
 using System;
 using System.Windows.Forms;
-
+using System.IO;
+using System.Text;
+using System.Threading.Tasks;
+using System.Collections.Generic;
 
 namespace Ron_BAN
 {
@@ -54,12 +57,17 @@ namespace Ron_BAN
 			}
 		}
 
-		void m_btn_leave_rm_Click(object sender, EventArgs e)
+		void m_btn_proxy_Click(object sender, EventArgs e)
 		{
-		}
-
-		void m_btn_logout_Click(object sender, EventArgs e)
-		{
+			try
+			{
+				Drrr_Proxy.Init();
+				Drrr_Proxy.Get_index_html(); ;
+			}
+			catch (Exception ex)
+			{
+				Program.WriteStatus(ex.ToString());
+			}
 		}
 
 		private void m_btn_issue_Click(object sender, EventArgs e)
@@ -69,24 +77,59 @@ namespace Ron_BAN
 
 		private void m_btn_GetJSON_Click(object sender, EventArgs e)
 		{
-			string str_JSON = Drrr_Host.GetJSON();
-			Program.WriteStBox(str_JSON);
+			string str_JSON = Encoding.UTF8.GetString(Drrr_Host.GetJSON());
+			Program.WriteStatus(str_JSON);
+
+//			File.WriteAllText(@"Y:\test_code\err.json", str_JSON);
 		}
 
+		// ------------------------------------------------------------------------------------
+		// テスト１
 		void m_btn_test_1_Click(object sender, EventArgs e)
 		{
 		}
 
+		// ------------------------------------------------------------------------------------
+		// テスト２
 		void m_btn_test_2_Click(object sender, EventArgs e)
+		{
+		}
+
+		// ------------------------------------------------------------------------------------
+		// テスト３
+		void m_btn_test_3_Click(object sender, EventArgs e)
 		{
 			try
 			{
-				Drrr_Proxy.Init();
-				Drrr_Proxy.Get_index_html(); ;
+				Read_JsonFile(@"Y:\test_code\_sample1-1_knk.json");
+				Read_JsonFile(@"Y:\test_code\_sample1-1_knk.json");
+				Read_JsonFile(@"Y:\test_code\_sample1-1_knk.json");
+				Read_JsonFile(@"Y:\test_code\_sample1-2_knk.json");
+				Read_JsonFile(@"Y:\test_code\_sample1-2_knk.json");
+				Read_JsonFile(@"Y:\test_code\_sample1-2_knk.json");
+				Read_JsonFile(@"Y:\test_code\_sample1-3_knk.json");
+				Read_JsonFile(@"Y:\test_code\_sample1-3_knk.json");
+				Read_JsonFile(@"Y:\test_code\_sample1-3_knk.json");
 			}
 			catch (Exception ex)
 			{
-				Program.WriteStBox(ex.ToString());
+				Program.WriteStatus(ex.ToString());
+			}
+		}
+
+		static void Read_JsonFile(string filepath)
+		{
+			using (FileStream fs = File.OpenRead(filepath))
+			{
+				int bytes_file = (int)fs.Length;
+				byte[] buf_utf8 = new byte[bytes_file];
+				fs.Read(buf_utf8, 0, bytes_file);
+
+				StringBuilder sb = DB_cur.Set_RoomJSON(buf_utf8);
+				if (sb.Length > 0)
+				{
+					Program.WriteStatus(sb.ToString());
+				}
 			}
 		}
 	}
