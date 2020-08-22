@@ -323,7 +323,7 @@ namespace Ron_BAN
 
 		static ulong ms_time_for_msgid = 0;
 
-		public static StringBuilder Set_RoomJSON(byte[] buf_utf8)
+		public static StringBuilder Anlz_RoomJSON(byte[] buf_utf8)
 		{
 			// ------------------------------------------------------------
 			// users の解析
