@@ -22,7 +22,7 @@ namespace Ron_BAN
 
 		static public void Init()
 		{
-			Program.WriteStatus("--- Drrr_Proxy.Init()\r\n");
+			MainForm.WriteStatus("--- Drrr_Proxy.Init()\r\n");
 
 			ms_buf_send = new byte[ms_size_buf_send];
 
@@ -61,26 +61,26 @@ namespace Ron_BAN
 			if (bytes_send != bytes_wrtn)
 			{ throw new Exception("!!! bytes_send != bytes_wrtn となりました。"); }
 
-			Program.WriteStatus("--- proxy の接続要求を始めます。\r\n");
+			MainForm.WriteStatus("--- proxy の接続要求を始めます。\r\n");
 			ms_ns_proxy.Write(ms_buf_send, 0, bytes_send);
 
 			ms_mem_stream_recv.Position = 0;
 			do
 			{
 				int bytes_read = ms_ns_proxy.Read(ms_buf_recv_wnd, 0, SIZE_BUF_RECV_WND);
-				Program.WriteStatus($"+++ Receive: {bytes_read} bytes\r\n");
+				MainForm.WriteStatus($"+++ Receive: {bytes_read} bytes\r\n");
 				ms_mem_stream_recv.Write(ms_buf_recv_wnd, 0, bytes_read);
 			} while (ms_Proxy_TcpClient.Available > 0);
 			//			} while (ms_ns_proxy.DataAvailable);
 
 			int bytes_ = ms_ns_proxy.Read(ms_buf_recv_wnd, 0, SIZE_BUF_RECV_WND);
-			Program.WriteStatus($"+++ last: {bytes_} bytes\r\n");
+			MainForm.WriteStatus($"+++ last: {bytes_} bytes\r\n");
 
-			Program.WriteStatus($"+++ Connected: {ms_Proxy_TcpClient.Connected.ToString()}\r\n");
+			MainForm.WriteStatus($"+++ Connected: {ms_Proxy_TcpClient.Connected.ToString()}\r\n");
 
 			ms_mem_stream_recv.Position = 0;
 			var sr = new StreamReader(ms_mem_stream_recv, Encoding.UTF8);
-			Program.WriteStatus(sr.ReadToEnd());
+			MainForm.WriteStatus(sr.ReadToEnd());
 
 			return "--- OK\r\n";
 		}
@@ -104,7 +104,7 @@ namespace Ron_BAN
 		{
 			m_buf_send = new byte[m_size_buf_send];
 
-			Program.WriteStatus("--- drrrkari.com 接続開始\r\n");
+			MainForm.WriteStatus("--- drrrkari.com 接続開始\r\n");
 			m_TcpClient = new TcpClient("drrrkari.com", 80);
 		}
 
@@ -132,14 +132,14 @@ namespace Ron_BAN
 			{ throw new Exception("!!! bytes_send != bytes_wrtn となりました。"); }
 
 			m_ns_drrr.Write(m_buf_send, 0, bytes_send);
-			Program.WriteStatus("--- index.html の取得を要求しました。\r\n");
+			MainForm.WriteStatus("--- index.html の取得を要求しました。\r\n");
 
 			m_mem_stream_recv.Position = 0;
 
 			do
 			{
 				int bytes_read = m_ns_drrr.Read(m_buf_recv_wnd, 0, SIZE_BUF_RECV_WND);
-				Program.WriteStatus($"+++ Receive: {bytes_read}\r\n");
+				MainForm.WriteStatus($"+++ Receive: {bytes_read}\r\n");
 				m_mem_stream_recv.Write(m_buf_recv_wnd, 0, bytes_read);
 			}
 			while (m_ns_drrr.DataAvailable);
