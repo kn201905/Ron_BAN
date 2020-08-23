@@ -25,7 +25,7 @@ namespace Ron_BAN
 
 		// ------------------------------------------------------------------------------------
 		// Establish_cnct() で、例外が発生した場合はアプリを起動し直す
-		public static async Task<bool> Establish_cnct(string user_name, string room_name)
+		public static async Task<bool> Establish_cnct(string user_name, string str_icon, string room_name)
 		{
 			if (ms_bEstablish_once) { return false; }
 			ms_bEstablish_once = true;
@@ -73,7 +73,7 @@ namespace Ron_BAN
 
 			string str_reply;
 			str_reply = ms_wc.UploadString("http://drrrkari.com/"
-					, $"language=ja-JP&icon=setton&name={user_name}&login=login&token={str_token}");
+					, $"language=ja-JP&icon={str_icon}&name={user_name}&login=login&token={str_token}");
 
 			if (str_reply.Contains("雑談部屋") == false)
 			{ throw new Exception("!!! ログインに失敗しました。");  }
