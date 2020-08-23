@@ -42,7 +42,9 @@ namespace Ron_BAN
 					m_btn_connect.Text = "切断";
 
 					// 接続処理開始
-					bool b_result = await Drrr_Host.Establish_cnct("ベア", "今日は暑い");
+					// アイコン名は girl, moza, tanaka, kanra, usa, gg, orange, zaika, 
+					// setton, zawa, neko, purple, kai, bakyura, neko2, numakuro など
+					bool b_result = await Drrr_Host.Establish_cnct("管理者", "setton", "テスト部屋");
 					if (b_result == false)
 					{ throw new Exception("!!! 接続処理に失敗しました。"); }
 				}
