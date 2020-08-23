@@ -114,9 +114,6 @@ namespace Ron_BAN
 		{
 			try
 			{
-//				using (FileStream fs = File.OpenRead(@"Y:\test_code\utf8_obj.json"))
-//				using (FileStream fs = File.OpenRead(@"Y:\test_code\utf8_ary.json"))
-
 				Read_JsonFile(@"Y:\test_code\_sample1-1_knk.json");
 				Read_JsonFile(@"Y:\test_code\_sample1-1_knk.json");
 				Read_JsonFile(@"Y:\test_code\_sample1-1_knk.json");
