@@ -11,9 +11,14 @@ namespace Ron_BAN
 	{
 		bool m_bConnected_once = false;
 
+		static TextBox ms_tbox_status = null;
+
 		public MainForm()
 		{
 			InitializeComponent();
+
+			ms_tbox_status = m_tbox_status;
+			m_btn_connect.Click += new System.EventHandler(OnClk_ConnectBtn);
 		}
 
 		~MainForm()
@@ -22,7 +27,12 @@ namespace Ron_BAN
 			Drrr_Proxy.Dispose();
 		}
 
-		async void OnBtnClk_connect(object sender, EventArgs e)
+		public static void WriteStatus(string msg)
+		{
+			ms_tbox_status.AppendText(msg);
+		}
+
+		async void OnClk_ConnectBtn(object sender, EventArgs e)
 		{
 			try
 			{
@@ -32,7 +42,7 @@ namespace Ron_BAN
 					m_btn_connect.Text = "切断";
 
 					// 接続処理開始
-					bool b_result = await Drrr_Host.Establish_cnct("ユーザ名", "部屋名");
+					bool b_result = await Drrr_Host.Establish_cnct("ベア", "今日は暑い");
 					if (b_result == false)
 					{ throw new Exception("!!! 接続処理に失敗しました。"); }
 				}
@@ -66,7 +76,7 @@ namespace Ron_BAN
 			}
 			catch (Exception ex)
 			{
-				Program.WriteStatus(ex.ToString());
+				MainForm.WriteStatus(ex.ToString());
 			}
 		}
 
@@ -77,8 +87,11 @@ namespace Ron_BAN
 
 		private void m_btn_GetJSON_Click(object sender, EventArgs e)
 		{
-			string str_JSON = Encoding.UTF8.GetString(Drrr_Host.GetJSON());
-			Program.WriteStatus(str_JSON);
+			byte[] bytes_utf8 = Drrr_Host.GetJSON();
+//			DB_cur.Anlz_RoomJSON(bytes_utf8);
+
+			string str_JSON = Encoding.UTF8.GetString(bytes_utf8);
+			MainForm.WriteStatus(str_JSON);
 
 //			File.WriteAllText(@"Y:\test_code\err.json", str_JSON);
 		}
@@ -101,6 +114,9 @@ namespace Ron_BAN
 		{
 			try
 			{
+//				using (FileStream fs = File.OpenRead(@"Y:\test_code\utf8_obj.json"))
+//				using (FileStream fs = File.OpenRead(@"Y:\test_code\utf8_ary.json"))
+
 				Read_JsonFile(@"Y:\test_code\_sample1-1_knk.json");
 				Read_JsonFile(@"Y:\test_code\_sample1-1_knk.json");
 				Read_JsonFile(@"Y:\test_code\_sample1-1_knk.json");
@@ -113,7 +129,7 @@ namespace Ron_BAN
 			}
 			catch (Exception ex)
 			{
-				Program.WriteStatus(ex.ToString());
+				MainForm.WriteStatus(ex.ToString());
 			}
 		}
 
@@ -125,10 +141,10 @@ namespace Ron_BAN
 				byte[] buf_utf8 = new byte[bytes_file];
 				fs.Read(buf_utf8, 0, bytes_file);
 
-				StringBuilder sb = DB_cur.Set_RoomJSON(buf_utf8);
+				StringBuilder sb = DB_cur.Anlz_RoomJSON(buf_utf8);
 				if (sb.Length > 0)
 				{
-					Program.WriteStatus(sb.ToString());
+					MainForm.WriteStatus(sb.ToString());
 				}
 			}
 		}
