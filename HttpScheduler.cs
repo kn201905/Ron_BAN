@@ -7,7 +7,7 @@ namespace Ron_BAN
 		{
 			LoTask lo_task = new LoTask() { m_task_id = ms_lo_task_id };
 			ms_lo_task_id++;
-			await TaskScheduler.Set(lo_task);
+			await HttpScheduler.Set(lo_task);
 
 			ms_RBox_usrMsg.AppendText($"result: {lo_task.m_result}\r\n");
 		}
