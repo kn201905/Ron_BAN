@@ -271,6 +271,47 @@ namespace Ron_BAN
 			return await http_res.Content.ReadAsByteArrayAsync();
 		}
 
+		class GetJSON_Task : Lo_HttpTask
+		{
+			static Uri ms_uri_getJSON = new Uri("http://drrrkari.com/ajax.php");
+			static Uri ms_uri_referer_getJSON = new Uri("http://drrrkari.com/room/");
+			static ByteArrayContent ms_content_getJSON = new ByteArrayContent(new byte[0]);
+			public static int ms_num_getJSON_task = 0;
+
+			public GetJSON_Task()
+			{
+				m_http_req = new HttpRequestMessage(HttpMethod.Post, ms_uri_getJSON);
+				m_http_req.Headers.Add("Accept", "application/json");
+				m_http_req.Headers.Add("X-Requested-With", "XMLHttpRequest");
+				m_http_req.Headers.Referrer = ms_uri_referer_getJSON;
+
+				m_http_req.Content = ms_content_getJSON;
+				ms_num_getJSON_task++;
+			}
+
+			public override void Dec_CountAsKind()
+			{
+				if (ms_num_getJSON_task <= 0)
+				{ throw new Exception("!!! 未知の不具合：「ms_num_getJSON_task <= 0」"); }
+
+				ms_num_getJSON_task--;
+			}
+		}
+
+		static class GetJSON_Task_Factory
+		{
+			const int MAX_getJSON_task = 1;
+
+			public static GetJSON_Task Create()
+			{
+				if (GetJSON_Task.ms_num_getJSON_task >= MAX_getJSON_task)
+				{
+					return null;
+				}
+				return new GetJSON_Task();
+			}
+		}
+
 		// ------------------------------------------------------------------------------------
 		// 切断時など処理がされなかった場合には、false が返される
 		
@@ -298,6 +339,51 @@ namespace Ron_BAN
 			return true;
 		}
 
+		class PostMsg_Task : Lo_HttpTask
+		{
+			static Uri ms_uri_postMsg = new Uri("http://drrrkari.com/room/?ajax=1");
+			static Uri ms_uri_referer_postMsg = new Uri("http://drrrkari.com/room/");
+			static MediaTypeHeaderValue ms_content_type_postMsg
+				= new MediaTypeHeaderValue("application/x-www-form-urlencoded") { CharSet = "UTF-8" };
+			public static int ms_num_post_msg_task = 0;
+
+			public PostMsg_Task(string msg_to_post)
+			{
+				m_http_req = new HttpRequestMessage(HttpMethod.Post, ms_uri_postMsg);
+				// m_http_req.Headers.Add("Accept", "*,*");  // 例外が発生する、、、
+				m_http_req.Headers.Add("X-Requested-With", "XMLHttpRequest");
+				m_http_req.Headers.Referrer = ms_uri_referer_postMsg;
+
+				m_http_req.Content = new ByteArrayContent(Encoding.UTF8.GetBytes(
+																	$"message={WebUtility.UrlEncode(msg_to_post)}&valid=1"));
+				m_http_req.Content.Headers.ContentType = ms_content_type_postMsg;
+
+				ms_num_post_msg_task++;
+			}
+
+			public override void Dec_CountAsKind()
+			{
+				if (ms_num_post_msg_task <= 0)
+				{ throw new Exception("!!! 未知の不具合：「ms_num_post_msg_task <= 0」"); }
+
+				ms_num_post_msg_task--;
+			}
+		}
+
+		static class PostMsg_Task_Factory
+		{
+			const uint MAX_postMsg_task = 3;
+
+			public static PostMsg_Task Create(string msg_to_post)
+			{
+				if (PostMsg_Task.ms_num_post_msg_task >= MAX_postMsg_task)
+				{
+					return null;
+				}
+				return new PostMsg_Task(msg_to_post);
+			}
+		}
+
 		///////////////////////////////////////////////////////////////////////////////////////
 
 		static string GetCookieStr(HttpResponseHeaders res_headers)
@@ -318,6 +404,83 @@ namespace Ron_BAN
 			{ throw new Exception("!!! クッキー：durarara が見つかりませんでした。"); }
 
 			return $"{cookie_cf}; {cookie_drrr}";
+		}
+
+		///////////////////////////////////////////////////////////////////////////////////////
+		
+		static class HttpScheduler
+		{
+			public static async Task Set(HttpTask http_task)
+			{
+				Task task = http_task.Queueing();
+				http_task.SetLatestTask(task);
+				await task;
+			}
+		}
+
+		public abstract class HttpTask
+		{
+			public string m_str_cancel = null;  // これが null でない場合、タスクがキャンセルされたことを表す
+			protected HttpRequestMessage m_http_req = null;
+
+			public abstract Task Queueing();
+			public abstract void SetLatestTask(Task task);
+
+//			public abstract uint CountAsKind();  // 現在実行中のタスク ＋ キューされてるタスク
+			public abstract void Dec_CountAsKind();
+		}
+
+		public abstract class Mid_HttpTask : HttpTask
+		{
+			public static uint ms_num_mid_task = 0;  // 現在実行中のタスク ＋ キューされてるタスク
+			public static Task ms_mid_task_latest = null;
+
+			public override void SetLatestTask(Task task) { ms_mid_task_latest = task; }
+			public override async Task Queueing()
+			{
+				ms_num_mid_task++;
+				if (ms_num_mid_task > 1)
+				{
+					await ms_mid_task_latest;
+				}
+				if (Lo_HttpTask.ms_lo_task_cur != null)
+				{
+					await Lo_HttpTask.ms_lo_task_cur;
+				}
+
+				await ms_http_client.SendAsync(m_http_req);
+				this.Dec_CountAsKind();
+
+				ms_num_mid_task--;
+			}
+		}
+
+		public abstract class Lo_HttpTask : HttpTask
+		{
+			static uint ms_num_lo_task = 0;  // 現在実行中のタスク ＋ キューされてるタスク
+			static Task ms_lo_task_latest = null;
+			public static Task ms_lo_task_cur = null;
+
+			public override void SetLatestTask(Task task) { ms_lo_task_latest = task; }
+			public override async Task Queueing()
+			{
+				ms_num_lo_task++;
+				if (ms_num_lo_task > 1)
+				{
+					await ms_lo_task_latest;
+				}
+				while (Mid_HttpTask.ms_num_mid_task > 0)
+				{
+					await Mid_HttpTask.ms_mid_task_latest;
+				}
+
+				ms_lo_task_cur = ms_http_client.SendAsync(m_http_req);
+				await ms_lo_task_cur;
+				ms_lo_task_cur = null;
+				this.Dec_CountAsKind();
+
+				ms_num_lo_task--;
+			}
 		}
 	}
 }
