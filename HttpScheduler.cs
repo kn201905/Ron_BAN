@@ -47,34 +47,10 @@ namespace Ron_BAN
 			public abstract void SetLatestTask(Task task);
 		}
 
-		public class LoTask : HttpTask
-		{
-			static uint ms_num_lo_task = 0;
-			static Task ms_lo_task_latest = null;
-
-			public override void SetLatestTask(Task task) { ms_lo_task_latest = task; }
-			public override async Task Queueing()
-			{
-				ms_num_lo_task++;
-				if (ms_num_lo_task > 1)
-				{
-					await ms_lo_task_latest;
-				}
-
-				ms_RBox_usrMsg.AppendText($"--- Lo_Ex_Task　task_id: {m_task_id} <-- START\r\n");
-
-				await Task.Delay(2000);
-				m_result = m_task_id + 1000;
-
-				ms_RBox_usrMsg.AppendText($"--- Lo_Ex_Task　task_id: {m_task_id} <-- END\r\n");
-				ms_num_lo_task--;
-			}
-		}
-
 		public class MidTask : HttpTask
 		{
-			static uint ms_num_mid_task = 0;
-			static Task ms_mid_task_latest = null;
+			public static uint ms_num_mid_task = 0;
+			public static Task ms_mid_task_latest = null;
 
 			public override void SetLatestTask(Task task) { ms_mid_task_latest = task; }
 			public override async Task Queueing()
@@ -83,6 +59,10 @@ namespace Ron_BAN
 				if (ms_num_mid_task > 1)
 				{
 					await ms_mid_task_latest;
+				}
+				if (LoTask.ms_lo_task_cur != null)
+				{
+					await LoTask.ms_lo_task_cur;
 				}
 
 				ms_RBox_usrMsg.SelectionColor = System.Drawing.Color.FromArgb(255, 100, 50);
@@ -99,4 +79,35 @@ namespace Ron_BAN
 				ms_num_mid_task--;
 			}
 		}
+
+		public class LoTask : HttpTask
+		{
+			static uint ms_num_lo_task = 0;
+			static Task ms_lo_task_latest = null;
+			public static Task ms_lo_task_cur = null;
+
+			public override void SetLatestTask(Task task) { ms_lo_task_latest = task; }
+			public override async Task Queueing()
+			{
+				ms_num_lo_task++;
+				if (ms_num_lo_task > 1)
+				{
+					await ms_lo_task_latest;
+				}
+				while (MidTask.ms_num_mid_task > 0)
+				{
+					await MidTask.ms_mid_task_latest;
+				}
+
+				ms_RBox_usrMsg.AppendText($"--- Lo_Ex_Task　task_id: {m_task_id} <-- START\r\n");
+
+				ms_lo_task_cur= Task.Delay(2000);
+				await ms_lo_task_cur;
+				ms_lo_task_cur = null;
+				m_result = m_task_id + 1000;
+
+				ms_RBox_usrMsg.AppendText($"--- Lo_Ex_Task　task_id: {m_task_id} <-- END\r\n");
+				ms_num_lo_task--;
+			}
+		}		
 }
