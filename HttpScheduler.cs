@@ -1,4 +1,3 @@
-
 namespace Ron_BAN
 {
 		// ------------------------------------------------------------------------------------
@@ -28,7 +27,7 @@ namespace Ron_BAN
 
 		// ------------------------------------------------------------------------------------
 
-		static class TaskScheduler
+		static class HttpScheduler
 		{
 			public static async Task Set(HttpTask http_task)
 			{
@@ -70,4 +69,4 @@ namespace Ron_BAN
 				ms_num_lo_task--;
 			}
 		}
-  }
+}
