@@ -17,12 +17,12 @@ namespace Ron_BAN
 		static uint ms_mid_task_id = 101;
 		async void m_btn_test_2_Click(object sender, EventArgs e)
 		{
-			http_task mid_task = new http_task{ m_task_id = ms_mid_task_id };
+			MidTask mid_task = new MidTask() { m_task_id = ms_mid_task_id };
 			ms_mid_task_id++;
 
-			http_task result = await Task_SC.Set_Task(mid_task);
+			await HttpScheduler.Set(mid_task);
 
-			ms_RBox_usrMsg.AppendText($"result: {result.m_result}\r\n");
+			ms_RBox_usrMsg.AppendText($"result: {mid_task.m_result}\r\n");
 		}
 
 		// ------------------------------------------------------------------------------------
@@ -39,6 +39,7 @@ namespace Ron_BAN
 
 		public abstract class HttpTask
 		{
+			public string m_str_cancel = null;  // これが null でない場合、タスクがキャンセルされたことを表す
 			public uint m_task_id;
 			public uint m_result;
 
@@ -67,6 +68,35 @@ namespace Ron_BAN
 
 				ms_RBox_usrMsg.AppendText($"--- Lo_Ex_Task　task_id: {m_task_id} <-- END\r\n");
 				ms_num_lo_task--;
+			}
+		}
+
+		public class MidTask : HttpTask
+		{
+			static uint ms_num_mid_task = 0;
+			static Task ms_mid_task_latest = null;
+
+			public override void SetLatestTask(Task task) { ms_mid_task_latest = task; }
+			public override async Task Queueing()
+			{
+				ms_num_mid_task++;
+				if (ms_num_mid_task > 1)
+				{
+					await ms_mid_task_latest;
+				}
+
+				ms_RBox_usrMsg.SelectionColor = System.Drawing.Color.FromArgb(255, 100, 50);
+				ms_RBox_usrMsg.AppendText($"--- Mid_Ex_Task　task_id: {m_task_id} <-- START\r\n");
+				ms_RBox_usrMsg.SelectionColor = System.Drawing.Color.Black;
+
+				await Task.Delay(2000);
+				m_result = m_task_id + 1000;
+
+				ms_RBox_usrMsg.SelectionColor = System.Drawing.Color.FromArgb(255, 100, 50);
+				ms_RBox_usrMsg.AppendText($"--- Mid_Ex_Task　task_id: {m_task_id} <-- END\r\n");
+				ms_RBox_usrMsg.SelectionColor = System.Drawing.Color.Black;
+
+				ms_num_mid_task--;
 			}
 		}
 }
