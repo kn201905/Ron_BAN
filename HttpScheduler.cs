@@ -29,11 +29,11 @@ namespace Ron_BAN
 
 		static class HttpScheduler
 		{
-			public static async Task Set(HttpTask http_task)
+			public static Task Set(HttpTask http_task)
 			{
 				Task task = http_task.Queueing();
 				http_task.SetLatestTask(task);
-				await task;
+				return task;
 			}
 		}
 
