@@ -9,7 +9,7 @@ using AngleSharp.Html.Parser;
 
 namespace Ron_BAN
 {
-	static class Drrr_Host2
+	static partial class Drrr_Host2
 	{
 		// 現在のところ、アプリ起動につき、接続は１回のみとして設計している
 		static bool ms_bEstablish_once = false;
@@ -18,14 +18,6 @@ namespace Ron_BAN
 		static HttpClient ms_http_client = null;
 
 		static string ms_str_Cookie = null;
-
-		static Uri ms_uri_GetJSON = null;
-		static Uri ms_uri_referer_GetJSON = null;
-		static ByteArrayContent ms_content_GetJSON = null;
-
-		static Uri ms_uri_PostMsg = null;
-		static Uri ms_uri_referer_PostMsg = null;
-		static MediaTypeHeaderValue ms_content_type_PostMsg = null;
 
 		public static void Dispose()
 		{
@@ -160,30 +152,12 @@ namespace Ron_BAN
 
 			MainForm.WriteStatus("--- 部屋の作成に成功しました。\r\n");
 
-			// ------------------------------------------------------------
-			// Ajax 用の材料を作成しておく
-			ms_uri_GetJSON = new Uri("http://drrrkari.com/ajax.php");
-			ms_uri_referer_GetJSON = new Uri("http://drrrkari.com/room/");
-			ms_content_GetJSON = new ByteArrayContent(new byte[0]);
-
-			ms_uri_PostMsg = new Uri("http://drrrkari.com/room/?ajax=1");
-			ms_uri_referer_PostMsg = new Uri("http://drrrkari.com/room/");
-			ms_content_type_PostMsg = new MediaTypeHeaderValue("application/x-www-form-urlencoded");
-			ms_content_type_PostMsg.CharSet = "UTF-8";
-
 			return null;
 		}
 
 		///////////////////////////////////////////////////////////////////////////////////////
 
 		static bool msb_Discnct_Started = false;  // 最重要フラグ
-		static bool msb_GetJSON_Started = false;
-		static bool msb_PostMsg_Started = false;
-
-		static Task<HttpResponseMessage> ms_task_GetJSON = null;
-		static Task ms_task_PostMsg = null;
-
-		// ------------------------------------------------------------------------------------
 
 		// 操作が正しく終了した場合は、null が返される
 		public static async Task<string> Disconnect()
@@ -192,8 +166,9 @@ namespace Ron_BAN
 
 			msb_Discnct_Started = true;  // 切断処理開始のフラグ
 
-			if (msb_GetJSON_Started) { await ms_task_GetJSON; }
-			if (msb_PostMsg_Started) { await ms_task_PostMsg; }
+			// 現在実行中の http シーケンスがあれば、その終了を待つ
+			if (Lo_HttpTask.ms_lo_task_cur != null) { await Lo_HttpTask.ms_lo_task_cur; }
+			if (Mid_HttpTask.ms_mid_task_cur != null) { await Mid_HttpTask.ms_mid_task_cur; }
 
 			// ------------------------------------------------------------
 			// 部屋から退室する
@@ -248,138 +223,55 @@ namespace Ron_BAN
 		}
 		
 		// ------------------------------------------------------------------------------------
-		// 取得された JSON は UTF8 のバイト列で返される
 
-		public static async Task<byte[]> GetJSON()
+		public static async Task<HttpTask> GetJSON()
 		{
-			if (msb_PostMsg_Started) { await ms_task_PostMsg; }
-			if (msb_Discnct_Started) { return null; }
+			HttpTask getJSON_task = GetJSON_Task_Factory.Create();
+			if (getJSON_task.m_str_cancel != null) { return getJSON_task; }
 
-			msb_GetJSON_Started = true;
-
-			var http_req_msg = new HttpRequestMessage(HttpMethod.Post, ms_uri_GetJSON);
-			http_req_msg.Headers.Add("Accept", "application/json");
-			http_req_msg.Headers.Add("X-Requested-With", "XMLHttpRequest");
-			http_req_msg.Headers.Referrer = ms_uri_referer_GetJSON;
-
-			http_req_msg.Content = ms_content_GetJSON;
-
-			ms_task_GetJSON = ms_http_client.SendAsync(http_req_msg);
-			var http_res = await ms_task_GetJSON;
-
-			msb_GetJSON_Started = false;
-			return await http_res.Content.ReadAsByteArrayAsync();
-		}
-
-		class GetJSON_Task : Lo_HttpTask
-		{
-			static Uri ms_uri_getJSON = new Uri("http://drrrkari.com/ajax.php");
-			static Uri ms_uri_referer_getJSON = new Uri("http://drrrkari.com/room/");
-			static ByteArrayContent ms_content_getJSON = new ByteArrayContent(new byte[0]);
-			public static int ms_num_getJSON_task = 0;
-
-			public GetJSON_Task()
-			{
-				m_http_req = new HttpRequestMessage(HttpMethod.Post, ms_uri_getJSON);
-				m_http_req.Headers.Add("Accept", "application/json");
-				m_http_req.Headers.Add("X-Requested-With", "XMLHttpRequest");
-				m_http_req.Headers.Referrer = ms_uri_referer_getJSON;
-
-				m_http_req.Content = ms_content_getJSON;
-				ms_num_getJSON_task++;
-			}
-
-			public override void Dec_CountAsKind()
-			{
-				if (ms_num_getJSON_task <= 0)
-				{ throw new Exception("!!! 未知の不具合：「ms_num_getJSON_task <= 0」"); }
-
-				ms_num_getJSON_task--;
-			}
+			await HttpScheduler.Set(getJSON_task);
+			return getJSON_task;  // getJSON_task にエラーも含めた実行結果が代入されている
 		}
 
 		static class GetJSON_Task_Factory
 		{
 			const int MAX_getJSON_task = 1;
 
-			public static GetJSON_Task Create()
+			public static HttpTask Create()
 			{
+				if (msb_Discnct_Started)
+				{ return new Err_HttpTask("+++ 切断処理が開始されました。GetJSON() はキャンセルされました。\r\n"); }
+
 				if (GetJSON_Task.ms_num_getJSON_task >= MAX_getJSON_task)
-				{
-					return null;
-				}
+				{ return new Err_HttpTask("+++ GetJSON() が２重に実行されました。GetJSON() はキャンセルされました。\r\n"); }
+
 				return new GetJSON_Task();
 			}
 		}
 
 		// ------------------------------------------------------------------------------------
-		// 切断時など処理がされなかった場合には、false が返される
 		
-		public static async Task<bool> PostMsg(string msg_to_post)
+		public static async Task<HttpTask> PostMsg(string msg_to_post)
 		{
-			if (msb_GetJSON_Started) { await ms_task_GetJSON; }
-			if (msb_Discnct_Started) { return false; }
+			HttpTask postMsg_task = PostMsg_Task_Factory.Create(msg_to_post);
+			if (postMsg_task.m_str_cancel != null) { return postMsg_task; }
 
-			msb_PostMsg_Started = true;
-
-			var http_req_msg = new HttpRequestMessage(HttpMethod.Post, ms_uri_PostMsg);
-//			http_req_msg.Headers.Add("Accept", "*,*");
-			http_req_msg.Headers.Add("X-Requested-With", "XMLHttpRequest");
-			http_req_msg.Headers.Referrer = ms_uri_referer_PostMsg;
-
-			http_req_msg.Content = new ByteArrayContent(Encoding.UTF8.GetBytes(
-																	$"message={WebUtility.UrlEncode(msg_to_post)}&valid=1"));
-			http_req_msg.Content.Headers.ContentType = ms_content_type_PostMsg;
-
-			// ?ajax=1 でアクセスした場合、サーバーからの返答には JSON等の有意義な情報が含まれない
-			ms_task_PostMsg = ms_http_client.SendAsync(http_req_msg);
-			await ms_task_PostMsg;
-
-			msb_PostMsg_Started = false;
-			return true;
-		}
-
-		class PostMsg_Task : Lo_HttpTask
-		{
-			static Uri ms_uri_postMsg = new Uri("http://drrrkari.com/room/?ajax=1");
-			static Uri ms_uri_referer_postMsg = new Uri("http://drrrkari.com/room/");
-			static MediaTypeHeaderValue ms_content_type_postMsg
-				= new MediaTypeHeaderValue("application/x-www-form-urlencoded") { CharSet = "UTF-8" };
-			public static int ms_num_post_msg_task = 0;
-
-			public PostMsg_Task(string msg_to_post)
-			{
-				m_http_req = new HttpRequestMessage(HttpMethod.Post, ms_uri_postMsg);
-				// m_http_req.Headers.Add("Accept", "*,*");  // 例外が発生する、、、
-				m_http_req.Headers.Add("X-Requested-With", "XMLHttpRequest");
-				m_http_req.Headers.Referrer = ms_uri_referer_postMsg;
-
-				m_http_req.Content = new ByteArrayContent(Encoding.UTF8.GetBytes(
-																	$"message={WebUtility.UrlEncode(msg_to_post)}&valid=1"));
-				m_http_req.Content.Headers.ContentType = ms_content_type_postMsg;
-
-				ms_num_post_msg_task++;
-			}
-
-			public override void Dec_CountAsKind()
-			{
-				if (ms_num_post_msg_task <= 0)
-				{ throw new Exception("!!! 未知の不具合：「ms_num_post_msg_task <= 0」"); }
-
-				ms_num_post_msg_task--;
-			}
+			await HttpScheduler.Set(postMsg_task);
+			return postMsg_task;  // getJSON_task にエラーも含めた実行結果が代入されている
 		}
 
 		static class PostMsg_Task_Factory
 		{
 			const uint MAX_postMsg_task = 3;
 
-			public static PostMsg_Task Create(string msg_to_post)
+			public static HttpTask Create(string msg_to_post)
 			{
+				if (msb_Discnct_Started)
+				{ return new Err_HttpTask("+++ 切断処理が開始されました。PostMsg() はキャンセルされました。\r\n"); }
+
 				if (PostMsg_Task.ms_num_post_msg_task >= MAX_postMsg_task)
-				{
-					return null;
-				}
+				{ return new Err_HttpTask("+++ PostMsg() が連続して実行されました。PostMsg() はキャンセルされました。\r\n"); }
+
 				return new PostMsg_Task(msg_to_post);
 			}
 		}
@@ -404,83 +296,6 @@ namespace Ron_BAN
 			{ throw new Exception("!!! クッキー：durarara が見つかりませんでした。"); }
 
 			return $"{cookie_cf}; {cookie_drrr}";
-		}
-
-		///////////////////////////////////////////////////////////////////////////////////////
-		
-		static class HttpScheduler
-		{
-			public static async Task Set(HttpTask http_task)
-			{
-				Task task = http_task.Queueing();
-				http_task.SetLatestTask(task);
-				await task;
-			}
-		}
-
-		public abstract class HttpTask
-		{
-			public string m_str_cancel = null;  // これが null でない場合、タスクがキャンセルされたことを表す
-			protected HttpRequestMessage m_http_req = null;
-
-			public abstract Task Queueing();
-			public abstract void SetLatestTask(Task task);
-
-//			public abstract uint CountAsKind();  // 現在実行中のタスク ＋ キューされてるタスク
-			public abstract void Dec_CountAsKind();
-		}
-
-		public abstract class Mid_HttpTask : HttpTask
-		{
-			public static uint ms_num_mid_task = 0;  // 現在実行中のタスク ＋ キューされてるタスク
-			public static Task ms_mid_task_latest = null;
-
-			public override void SetLatestTask(Task task) { ms_mid_task_latest = task; }
-			public override async Task Queueing()
-			{
-				ms_num_mid_task++;
-				if (ms_num_mid_task > 1)
-				{
-					await ms_mid_task_latest;
-				}
-				if (Lo_HttpTask.ms_lo_task_cur != null)
-				{
-					await Lo_HttpTask.ms_lo_task_cur;
-				}
-
-				await ms_http_client.SendAsync(m_http_req);
-				this.Dec_CountAsKind();
-
-				ms_num_mid_task--;
-			}
-		}
-
-		public abstract class Lo_HttpTask : HttpTask
-		{
-			static uint ms_num_lo_task = 0;  // 現在実行中のタスク ＋ キューされてるタスク
-			static Task ms_lo_task_latest = null;
-			public static Task ms_lo_task_cur = null;
-
-			public override void SetLatestTask(Task task) { ms_lo_task_latest = task; }
-			public override async Task Queueing()
-			{
-				ms_num_lo_task++;
-				if (ms_num_lo_task > 1)
-				{
-					await ms_lo_task_latest;
-				}
-				while (Mid_HttpTask.ms_num_mid_task > 0)
-				{
-					await Mid_HttpTask.ms_mid_task_latest;
-				}
-
-				ms_lo_task_cur = ms_http_client.SendAsync(m_http_req);
-				await ms_lo_task_cur;
-				ms_lo_task_cur = null;
-				this.Dec_CountAsKind();
-
-				ms_num_lo_task--;
-			}
 		}
 	}
 }
