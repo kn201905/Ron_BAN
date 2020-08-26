@@ -2,103 +2,255 @@ using System;
 using System.Windows.Forms;
 using System.IO;
 using System.Text;
+using System.Timers;
 using System.Threading.Tasks;
-using System.Collections.Generic;
 
 namespace Ron_BAN
 {
 	public partial class MainForm : Form
 	{
-		bool m_bConnected_once = false;
+		// タイマ関連
+		bool mb_timer_enabled = false;
+		System.Timers.Timer m_timer_getJSON = null;
+		uint m_timer_elapsed_msec = 0;
+		uint m_timer_interval_msec = 2000;
 
-		static TextBox ms_tbox_status = null;
+		const uint c_SEC_intvl_confirmation = 20 * 60;  // 20分毎に接続確認
+		uint m_nextsec_cnct_onfirmation = c_SEC_intvl_confirmation;
 
+		// ------------------------------------------------------------------------------------
 		public MainForm()
 		{
 			InitializeComponent();
 
-			ms_tbox_status = m_tbox_status;
-			m_btn_connect.Click += new System.EventHandler(OnClk_ConnectBtn);
+			m_timer_getJSON = new System.Timers.Timer(m_timer_interval_msec);
+			m_timer_getJSON.Elapsed += OnTimer_GetJSON;
+			m_timer_getJSON.AutoReset = true;
+			m_timer_getJSON.SynchronizingObject = this;
+
+			ms_RBox_status = m_RBox_status;
+			m_RBox_status.SelectionTabs = new int[] { 30 };
+			m_RBox_status.LanguageOption = RichTextBoxLanguageOptions.UIFonts;  // 行間を狭くする
+
+			ms_RBox_usrMsg = m_RBox_usrMsg;
+			ms_RBox_usrMsg.SelectionTabs = new int[] { 30 };
+			ms_RBox_usrMsg.LanguageOption = RichTextBoxLanguageOptions.UIFonts;  // 行間を狭くする
+
+			MainForm.WriteStatus("--- 起動しました\r\n");
 		}
 
 		~MainForm()
 		{
-			Drrr_Host.Dispose();
-			Drrr_Proxy.Dispose();
+			if (mb_timer_enabled) { m_timer_getJSON.Stop(); }
+			m_timer_getJSON.Dispose();
+
+			Drrr_Host2.Dispose();
 		}
 
+		// ------------------------------------------------------------------------------------
+
+		static RichTextBox ms_RBox_usrMsg = null;
+		public static void WriteMsg(string msg)
+		{
+			ms_RBox_usrMsg.SelectionColor = System.Drawing.Color.FromArgb(0, 150, 255);
+			ms_RBox_usrMsg.AppendText(DateTime.Now.ToString("[HH:mm:ss]　"));
+			ms_RBox_usrMsg.SelectionColor = System.Drawing.Color.Black;
+			ms_RBox_usrMsg.AppendText(msg);
+		}
+
+		// ------------------------------------------------------------------------------------
+
+		static RichTextBox ms_RBox_status = null;
 		public static void WriteStatus(string msg)
 		{
-			ms_tbox_status.AppendText(msg);
+			ms_RBox_status.SelectionColor = System.Drawing.Color.FromArgb(255, 100, 50);
+			ms_RBox_status.AppendText(DateTime.Now.ToString("[HH:mm:ss]　"));
+			ms_RBox_status.SelectionColor = System.Drawing.Color.Black;
+			ms_RBox_status.AppendText(msg);
 		}
+		
+		// ------------------------------------------------------------------------------------
+		bool mb_connected_once = false;
 
 		async void OnClk_ConnectBtn(object sender, EventArgs e)
 		{
+			string str_uname = m_TB0x_uname.Text;
+			string str_icon = m_TBox_str_icon.Text;
+			string str_room_name = m_TBox_roomname.Text;
+
+			if (str_uname.Length == 0 || str_icon.Length == 0 || str_room_name.Length == 0)
+			{
+				MessageBox.Show("! ユーザ名等に空欄があります。");
+				return;
+			}
+
 			try
 			{
-				if (m_bConnected_once == false)
+				if (mb_connected_once == false)
 				{
-					m_bConnected_once = true;
-					m_btn_connect.Text = "切断";
+					mb_connected_once = true;
+					m_Btn_connect.Text = "切断";
 
 					// 接続処理開始
 					// アイコン名は girl, moza, tanaka, kanra, usa, gg, orange, zaika, 
 					// setton, zawa, neko, purple, kai, bakyura, neko2, numakuro など
-					bool b_result = await Drrr_Host.Establish_cnct("管理者", "setton", "テスト部屋");
-					if (b_result == false)
-					{ throw new Exception("!!! 接続処理に失敗しました。"); }
+					string ret_str = await Drrr_Host2.Establish_cnct(str_uname, str_icon, str_room_name);
+					if (ret_str != null)
+					{
+						WriteStatus($"+++ 失敗メッセージ： {ret_str}\r\n\r\n");
+						throw new Exception("!!! 部屋の作成に失敗しました。");
+					}
+
+					StartTimer_GetJSON();
 				}
 				else
 				{
-					m_btn_connect.Text = "切断済み";
-					m_btn_connect.Enabled = false;
+					m_timer_getJSON.Stop();
+					m_Btn_timer_JSON.Enabled = false;
+
+					m_Btn_connect.Text = "切断済み";
+					m_Btn_connect.Enabled = false;
 
 					// 切断処理開始
-					bool b_result = await Drrr_Host.Disconnect();
-					if (b_result == false)
-					{ throw new Exception("!!! 切断処理に失敗しました。"); }
+					string ret_str = await Drrr_Host2.Disconnect();
+					if (ret_str != null)
+					{
+						WriteStatus($"+++ 失敗メッセージ： {ret_str}\r\n\r\n");
+						throw new Exception("!!! 切断処理に失敗しました。");
+					}
 				}
 			}
 			catch (Exception ex)
 			{
-				MessageBox.Show(ex.ToString());
+				WriteStatus(ex.ToString() + "\r\n\r\n");
 
-				m_bConnected_once = true;
-				m_btn_connect.Text = "エラー発生";
-				m_btn_connect.Enabled = false;
+				mb_connected_once = true;
+				m_Btn_connect.Text = "エラー発生";
+				m_Btn_connect.Enabled = false;
 			}
-		}
-
-		void m_btn_proxy_Click(object sender, EventArgs e)
-		{
-			try
-			{
-				Drrr_Proxy.Init();
-				Drrr_Proxy.Get_index_html(); ;
-			}
-			catch (Exception ex)
-			{
-				MainForm.WriteStatus(ex.ToString());
-			}
-		}
-
-		private void m_btn_issue_Click(object sender, EventArgs e)
-		{
-			Drrr_Host.PostMsg("発言実行テスト。test message");
-		}
-
-		private void m_btn_GetJSON_Click(object sender, EventArgs e)
-		{
-			byte[] bytes_utf8 = Drrr_Host.GetJSON();
-//			DB_cur.Anlz_RoomJSON(bytes_utf8);
-
-			string str_JSON = Encoding.UTF8.GetString(bytes_utf8);
-			MainForm.WriteStatus(str_JSON);
-
-//			File.WriteAllText(@"Y:\test_code\err.json", str_JSON);
 		}
 
 		// ------------------------------------------------------------------------------------
+
+		async void OnClk_PostMsgBtn(object sender, EventArgs e)
+		{
+			bool b_ret = await PostMsg(m_TBox_PostMsg.Text);
+			if (b_ret) { m_TBox_PostMsg.Clear(); }
+		}
+
+		bool mb_postMsg = false;
+		async Task<bool> PostMsg(string msg_to_post)  // 戻り値は、「m_TBox_PostMsg.Clear()」のためだけに利用される
+		{
+			if (mb_postMsg) { return false; }
+			m_Btn_postMsg.Enabled = false;
+			mb_postMsg = true;
+
+			Drrr_Host2.HttpTask postMsg_task = await Drrr_Host2.PostMsg(msg_to_post);
+			mb_postMsg = false;
+			m_Btn_postMsg.Enabled = true;
+
+			if (postMsg_task.m_str_cancel != null)
+			{
+				MainForm.WriteStatus($"!!! 「PostMsg」がキャンセルされました。\r\n{postMsg_task.m_str_cancel}\r\n\r\n");
+				return false;
+			}
+
+			MainForm.WriteStatus("+++ PostMsg 成功\r\n");
+			return true;
+		}
+
+		// ------------------------------------------------------------------------------------
+		void OnClk_GetJSON_Btn(object sender, EventArgs e)
+		{
+			GetJSON(DateTime.Now);
+		}
+
+		void OnClk_JSON_TimerBtn(object sender, EventArgs e)
+		{
+			if (mb_timer_enabled)
+			{
+				mb_timer_enabled = false;
+				m_Btn_timer_JSON.Text = "タイマ開始";
+				m_timer_getJSON.Stop();
+			}
+			else
+			{
+				StartTimer_GetJSON();
+			}
+		}
+
+		void StartTimer_GetJSON()
+		{
+			if (mb_timer_enabled) { return; }
+
+			mb_timer_enabled = true;
+			m_Btn_timer_JSON.Text = "タイマ停止";
+			m_timer_getJSON.Start();
+		}
+
+		// CS4014: 呼び出しの結果に 'await' 演算子を適用することを検討してください。
+		#pragma warning disable CS4014
+		async void OnTimer_GetJSON(Object src, ElapsedEventArgs ev_time)
+		{
+			m_timer_elapsed_msec += m_timer_interval_msec;
+			uint elapsed_sec = m_timer_elapsed_msec / 1000;
+			m_Lbl_timer_elapsed.Text = Convert.ToString(elapsed_sec);
+			GetJSON(ev_time.SignalTime);
+
+			if (elapsed_sec > m_nextsec_cnct_onfirmation)
+			{
+				string str_post = $"--- 接続確認 {Convert.ToString(elapsed_sec)}秒\r\n";
+				MainForm.WriteStatus(str_post);
+				m_nextsec_cnct_onfirmation += c_SEC_intvl_confirmation;
+
+				bool b_ret = await PostMsg(str_post);
+				if (b_ret == false)
+				{
+					MainForm.WriteStatus("+++ PostMsg() が失敗したため、一度だけ再試行します。");
+					PostMsg(str_post);  // この実行結果を待つ必要がないため、await は使用しない
+				}
+			}
+		}
+		#pragma warning restore CS4014
+
+		bool mb_getJSON = false;  // await Drrr_Host2.GetJSON() で、awaiter が溜まるのを防ぐ
+		async void GetJSON(DateTime datetime)
+		{
+			if (mb_getJSON) { return; }
+			m_Btn_getJSON.Enabled = false;
+			mb_getJSON = true;
+
+			// --------------------------------------------------
+			// JOSN の取得
+			Drrr_Host2.HttpTask getJSON_task = await Drrr_Host2.GetJSON();
+			mb_getJSON = false;
+			m_Btn_getJSON.Enabled = true;
+
+			if (getJSON_task.m_str_cancel != null)
+			{
+				MainForm.WriteStatus($"!!! 「JSON取得」がキャンセルされました。\r\n{getJSON_task.m_str_cancel}\r\n\r\n");
+				return;
+			}
+
+			byte[] bytes_utf8 = await getJSON_task.m_http_res.Content.ReadAsByteArrayAsync();
+
+			// --------------------------------------------------
+			// JOSN の解析
+			try
+			{
+				StringBuilder sb = DB_cur.Anlz_RoomJSON(bytes_utf8);
+				if (sb.Length > 0) { MainForm.WriteMsg(sb.ToString()); }
+			}
+			catch (Exception ex)
+			{
+				MainForm.WriteStatus($"!!! JSON解析中に例外が発生しました。JSON を保存します。\r\n{ex.ToString()}\r\n\r\n");
+
+				File.WriteAllText(@"Z:err_" + datetime.ToString("HH_mm_ss_f") + ".json"
+										, Encoding.UTF8.GetString(bytes_utf8));
+			}
+		}
+
+		///////////////////////////////////////////////////////////////////////////////////////
 		// テスト１
 		void m_btn_test_1_Click(object sender, EventArgs e)
 		{
@@ -114,39 +266,22 @@ namespace Ron_BAN
 		// テスト３
 		void m_btn_test_3_Click(object sender, EventArgs e)
 		{
+		}
+
+		/*
+		void m_btn_proxy_Click(object sender, EventArgs e)
+		{
 			try
 			{
-				Read_JsonFile(@"Y:\test_code\_sample1-1_knk.json");
-				Read_JsonFile(@"Y:\test_code\_sample1-1_knk.json");
-				Read_JsonFile(@"Y:\test_code\_sample1-1_knk.json");
-				Read_JsonFile(@"Y:\test_code\_sample1-2_knk.json");
-				Read_JsonFile(@"Y:\test_code\_sample1-2_knk.json");
-				Read_JsonFile(@"Y:\test_code\_sample1-2_knk.json");
-				Read_JsonFile(@"Y:\test_code\_sample1-3_knk.json");
-				Read_JsonFile(@"Y:\test_code\_sample1-3_knk.json");
-				Read_JsonFile(@"Y:\test_code\_sample1-3_knk.json");
+				Drrr_Proxy.Init();
+				Drrr_Proxy.Get_index_html();
 			}
 			catch (Exception ex)
 			{
 				MainForm.WriteStatus(ex.ToString());
 			}
 		}
-
-		static void Read_JsonFile(string filepath)
-		{
-			using (FileStream fs = File.OpenRead(filepath))
-			{
-				int bytes_file = (int)fs.Length;
-				byte[] buf_utf8 = new byte[bytes_file];
-				fs.Read(buf_utf8, 0, bytes_file);
-
-				StringBuilder sb = DB_cur.Anlz_RoomJSON(buf_utf8);
-				if (sb.Length > 0)
-				{
-					MainForm.WriteStatus(sb.ToString());
-				}
-			}
-		}
+		*/
 	}
 }
 
