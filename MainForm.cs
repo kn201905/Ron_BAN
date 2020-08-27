@@ -36,6 +36,8 @@ namespace Ron_BAN
 			ms_RBox_usrMsg.SelectionTabs = new int[] { 30 };
 			ms_RBox_usrMsg.LanguageOption = RichTextBoxLanguageOptions.UIFonts;  // 行間を狭くする
 
+			this.Create_BanCtrls();
+
 			MainForm.WriteStatus("--- 起動しました\r\n");
 		}
 
@@ -134,8 +136,15 @@ namespace Ron_BAN
 
 		async void OnClk_PostMsgBtn(object sender, EventArgs e)
 		{
-			bool b_ret = await PostMsg(m_TBox_PostMsg.Text);
-			if (b_ret) { m_TBox_PostMsg.Clear(); }
+			try
+			{
+				bool b_ret = await PostMsg(m_TBox_PostMsg.Text);
+				if (b_ret) { m_TBox_PostMsg.Clear(); }
+			}
+			catch (Exception ex)
+			{
+				MainForm.WriteStatus(ex.ToString() + "\r\n");
+			}
 		}
 
 		bool mb_postMsg = false;
@@ -145,18 +154,29 @@ namespace Ron_BAN
 			m_Btn_postMsg.Enabled = false;
 			mb_postMsg = true;
 
-			Drrr_Host2.HttpTask postMsg_task = await Drrr_Host2.PostMsg(msg_to_post);
-			mb_postMsg = false;
-			m_Btn_postMsg.Enabled = true;
-
-			if (postMsg_task.m_str_cancel != null)
+			try
 			{
-				MainForm.WriteStatus($"!!! 「PostMsg」がキャンセルされました。\r\n{postMsg_task.m_str_cancel}\r\n\r\n");
+				Drrr_Host2.HttpTask postMsg_task = await Drrr_Host2.PostMsg(msg_to_post);
+				mb_postMsg = false;
+				m_Btn_postMsg.Enabled = true;
+
+				if (postMsg_task.m_str_cancel != null)
+				{
+					MainForm.WriteStatus($"!!! 「PostMsg」がキャンセルされました。\r\n{postMsg_task.m_str_cancel}");
+					return false;
+				}
+
+				MainForm.WriteStatus("+++ PostMsg 成功\r\n");
+				return true;
+			}
+			catch (Exception ex)
+			{
+				MainForm.WriteStatus(ex.ToString() + "\r\n");
+				mb_postMsg = false;
+				m_Btn_postMsg.Enabled = true;
+
 				return false;
 			}
-
-			MainForm.WriteStatus("+++ PostMsg 成功\r\n");
-			return true;
 		}
 
 		// ------------------------------------------------------------------------------------
@@ -203,11 +223,18 @@ namespace Ron_BAN
 				MainForm.WriteStatus(str_post);
 				m_nextsec_cnct_onfirmation += c_SEC_intvl_confirmation;
 
-				bool b_ret = await PostMsg(str_post);
-				if (b_ret == false)
+				try
 				{
-					MainForm.WriteStatus("+++ PostMsg() が失敗したため、一度だけ再試行します。");
-					PostMsg(str_post);  // この実行結果を待つ必要がないため、await は使用しない
+					bool b_ret = await PostMsg(str_post);
+					if (b_ret == false)
+					{
+						MainForm.WriteStatus("+++ PostMsg() が失敗したため、一度だけ再試行します。");
+						PostMsg(str_post);  // この実行結果を待つ必要がないため、await は使用しない
+					}
+				}
+				catch (Exception ex)
+				{
+					MainForm.WriteStatus(ex.ToString() + "\r\n");
 				}
 			}
 		}
@@ -222,17 +249,28 @@ namespace Ron_BAN
 
 			// --------------------------------------------------
 			// JOSN の取得
-			Drrr_Host2.HttpTask getJSON_task = await Drrr_Host2.GetJSON();
-			mb_getJSON = false;
-			m_Btn_getJSON.Enabled = true;
-
-			if (getJSON_task.m_str_cancel != null)
+			byte[] bytes_utf8;
+			try
 			{
-				MainForm.WriteStatus($"!!! 「JSON取得」がキャンセルされました。\r\n{getJSON_task.m_str_cancel}\r\n\r\n");
+				Drrr_Host2.HttpTask getJSON_task = await Drrr_Host2.GetJSON();
+				mb_getJSON = false;
+				m_Btn_getJSON.Enabled = true;
+
+				if (getJSON_task.m_str_cancel != null)
+				{
+					MainForm.WriteStatus($"!!! 「JSON取得」がキャンセルされました。\r\n{getJSON_task.m_str_cancel}");
+					return;
+				}
+
+				bytes_utf8 = await getJSON_task.m_http_res.Content.ReadAsByteArrayAsync();
+			}
+			catch (Exception ex)
+			{
+				MainForm.WriteStatus(ex.ToString() + "\r\n");
+				mb_getJSON = false;
+				m_Btn_getJSON.Enabled = true;
 				return;
 			}
-
-			byte[] bytes_utf8 = await getJSON_task.m_http_res.Content.ReadAsByteArrayAsync();
 
 			// --------------------------------------------------
 			// JOSN の解析
@@ -240,6 +278,8 @@ namespace Ron_BAN
 			{
 				StringBuilder sb = DB_cur.Anlz_RoomJSON(bytes_utf8);
 				if (sb.Length > 0) { MainForm.WriteMsg(sb.ToString()); }
+
+				Update_BanCtrl();
 			}
 			catch (Exception ex)
 			{
@@ -267,21 +307,6 @@ namespace Ron_BAN
 		void m_btn_test_3_Click(object sender, EventArgs e)
 		{
 		}
-
-		/*
-		void m_btn_proxy_Click(object sender, EventArgs e)
-		{
-			try
-			{
-				Drrr_Proxy.Init();
-				Drrr_Proxy.Get_index_html();
-			}
-			catch (Exception ex)
-			{
-				MainForm.WriteStatus(ex.ToString());
-			}
-		}
-		*/
 	}
 }
 
