@@ -157,6 +157,28 @@ namespace Ron_BAN
 
 		///////////////////////////////////////////////////////////////////////////////////////
 
+		static string GetCookieStr(HttpResponseHeaders res_headers)
+		{
+			string cookie_cf = null;
+			string cookie_drrr = null;
+
+			foreach(string str in res_headers.GetValues("Set-Cookie"))
+			{
+				if (str.Contains("__cf")) { cookie_cf = str.Split(';')[0]; }
+				else if (str.Contains("dura")) { cookie_drrr = str.Split(';')[0]; ; }
+			}
+
+			if (cookie_cf == null)
+			{ throw new Exception("!!! クッキー：__cfduid が見つかりませんでした。"); }
+
+			if (cookie_drrr == null)
+			{ throw new Exception("!!! クッキー：durarara が見つかりませんでした。"); }
+
+			return $"{cookie_cf}; {cookie_drrr}";
+		}
+
+		///////////////////////////////////////////////////////////////////////////////////////
+
 		static bool msb_Discnct_Started = false;  // 最重要フラグ
 
 		// 操作が正しく終了した場合は、null が返される
@@ -222,14 +244,21 @@ namespace Ron_BAN
 			return null;
 		}
 		
-		// ------------------------------------------------------------------------------------
+		///////////////////////////////////////////////////////////////////////////////////////
 
 		public static async Task<HttpTask> GetJSON()
 		{
 			HttpTask getJSON_task = GetJSON_Task_Factory.Create();
 			if (getJSON_task.m_str_cancel != null) { return getJSON_task; }
 
-			await HttpScheduler.Set(getJSON_task);
+			try
+			{
+				await HttpScheduler.Set(getJSON_task);
+			}
+			catch(Exception ex)
+			{
+				getJSON_task.m_str_cancel = ex.ToString() + "\r\n";
+			}
 			return getJSON_task;  // getJSON_task にエラーも含めた実行結果が代入されている
 		}
 
@@ -256,8 +285,15 @@ namespace Ron_BAN
 			HttpTask postMsg_task = PostMsg_Task_Factory.Create(msg_to_post);
 			if (postMsg_task.m_str_cancel != null) { return postMsg_task; }
 
-			await HttpScheduler.Set(postMsg_task);
-			return postMsg_task;  // getJSON_task にエラーも含めた実行結果が代入されている
+			try
+			{
+				await HttpScheduler.Set(postMsg_task);
+			}
+			catch(Exception ex)
+			{
+				postMsg_task.m_str_cancel = ex.ToString() + "\r\n";
+			}
+			return postMsg_task;  // postMsg_task にエラーも含めた実行結果が代入されている
 		}
 
 		static class PostMsg_Task_Factory
@@ -283,8 +319,15 @@ namespace Ron_BAN
 			HttpTask banUsr_task = Ban_byUid_Task_Factory.Create(uid_to_ban);
 			if (banUsr_task.m_str_cancel != null) { return banUsr_task; }
 
-			await HttpScheduler.Set(banUsr_task);
-			return banUsr_task;  // getJSON_task にエラーも含めた実行結果が代入されている
+			try
+			{
+				await HttpScheduler.Set(banUsr_task);
+			}
+			catch(Exception ex)
+			{
+				banUsr_task.m_str_cancel = ex.ToString() + "\r\n";
+			}
+			return banUsr_task;  // banUsr_task にエラーも含めた実行結果が代入されている
 		}
 
 		static class Ban_byUid_Task_Factory
@@ -301,28 +344,6 @@ namespace Ron_BAN
 
 				return new BanByUid_Task(uid_to_ban);
 			}
-		}
-
-		///////////////////////////////////////////////////////////////////////////////////////
-
-		static string GetCookieStr(HttpResponseHeaders res_headers)
-		{
-			string cookie_cf = null;
-			string cookie_drrr = null;
-
-			foreach(string str in res_headers.GetValues("Set-Cookie"))
-			{
-				if (str.Contains("__cf")) { cookie_cf = str.Split(';')[0]; }
-				else if (str.Contains("dura")) { cookie_drrr = str.Split(';')[0]; ; }
-			}
-
-			if (cookie_cf == null)
-			{ throw new Exception("!!! クッキー：__cfduid が見つかりませんでした。"); }
-
-			if (cookie_drrr == null)
-			{ throw new Exception("!!! クッキー：durarara が見つかりませんでした。"); }
-
-			return $"{cookie_cf}; {cookie_drrr}";
 		}
 	}
 }
