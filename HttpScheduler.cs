@@ -137,7 +137,6 @@ namespace Ron_BAN
 		#pragma warning restore CS1998
 		
 		// ------------------------------------------------------------------------------------
-
 		class GetJSON_Task : Lo_HttpTask
 		{
 			static Uri ms_uri_getJSON = new Uri("http://drrrkari.com/ajax.php");
@@ -166,7 +165,6 @@ namespace Ron_BAN
 		}
 
 		// ------------------------------------------------------------------------------------
-
 		class PostMsg_Task : Lo_HttpTask
 		{
 			static Uri ms_uri_postMsg = new Uri("http://drrrkari.com/room/?ajax=1");
@@ -195,6 +193,38 @@ namespace Ron_BAN
 				{ throw new Exception("!!! 未知の不具合：「ms_num_post_msg_task <= 0」"); }
 
 				ms_num_post_msg_task--;
+			}
+		}
+
+		// ------------------------------------------------------------------------------------
+		class BanByUid_Task : Mid_HttpTask
+		{
+			static Uri ms_uri_ban = new Uri("http://drrrkari.com/room/?ajax=1");
+			static Uri ms_uri_referer_ban = new Uri("http://drrrkari.com/room/");
+			static MediaTypeHeaderValue ms_content_type_ban
+				= new MediaTypeHeaderValue("application/x-www-form-urlencoded") { CharSet = "UTF-8" };
+			public static int ms_num_ban_task = 0;
+
+			public BanByUid_Task(string uid_to_ban)
+			{
+				m_http_req = new HttpRequestMessage(HttpMethod.Post, ms_uri_ban);
+				// m_http_req.Headers.Add("Accept", "*,*");  // 例外が発生する、、、
+				m_http_req.Headers.Add("X-Requested-With", "XMLHttpRequest");
+				m_http_req.Headers.Referrer = ms_uri_referer_ban;
+
+				m_http_req.Content = new ByteArrayContent(Encoding.UTF8.GetBytes(
+																	$"ban_user={WebUtility.UrlEncode(uid_to_ban)}&block=1"));
+				m_http_req.Content.Headers.ContentType = ms_content_type_ban;
+
+				ms_num_ban_task++;
+			}
+
+			public override void DecCount_AsKind()
+			{
+				if (ms_num_ban_task <= 0)
+				{ throw new Exception("!!! 未知の不具合：「ms_num_ban_task <= 0」"); }
+
+				ms_num_ban_task--;
 			}
 		}
 	}
