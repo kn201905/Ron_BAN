@@ -276,6 +276,33 @@ namespace Ron_BAN
 			}
 		}
 
+		// ------------------------------------------------------------------------------------
+		
+		public static async Task<HttpTask> Ban_byUid(string uid_to_ban)
+		{
+			HttpTask banUsr_task = Ban_byUid_Task_Factory.Create(uid_to_ban);
+			if (banUsr_task.m_str_cancel != null) { return banUsr_task; }
+
+			await HttpScheduler.Set(banUsr_task);
+			return banUsr_task;  // getJSON_task にエラーも含めた実行結果が代入されている
+		}
+
+		static class Ban_byUid_Task_Factory
+		{
+			const uint MAX_banUsr_task = 3;
+
+			public static HttpTask Create(string uid_to_ban)
+			{
+				if (msb_Discnct_Started)
+				{ return new Err_HttpTask("+++ 切断処理が開始されました。BanUsr() はキャンセルされました。\r\n"); }
+
+				if (BanByUid_Task.ms_num_ban_task >= MAX_banUsr_task)
+				{ return new Err_HttpTask("+++ BanUsr() が連続して実行されました。BanUsr() はキャンセルされました。\r\n"); }
+
+				return new BanByUid_Task(uid_to_ban);
+			}
+		}
+
 		///////////////////////////////////////////////////////////////////////////////////////
 
 		static string GetCookieStr(HttpResponseHeaders res_headers)
