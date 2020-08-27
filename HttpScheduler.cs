@@ -48,11 +48,27 @@ namespace Ron_BAN
 				ms_num_lo_task++;
 				if (ms_num_lo_task > 1)
 				{
-					await ms_lo_task_latest;
+					try
+					{
+						await ms_lo_task_latest;
+					}
+					catch(Exception ex)
+					{
+						m_str_cancel = ex.ToString() + "\r\n";
+						return;
+					}
 				}
 				while (Mid_HttpTask.ms_num_mid_task > 0)
 				{
-					await Mid_HttpTask.ms_mid_task_latest;
+					try
+					{
+						await Mid_HttpTask.ms_mid_task_latest;
+					}
+					catch(Exception ex)
+					{
+						m_str_cancel = ex.ToString() + "\r\n";
+						return;
+					}
 				}
 				if (msb_Discnct_Started)
 				{
@@ -90,11 +106,27 @@ namespace Ron_BAN
 				ms_num_mid_task++;
 				if (ms_num_mid_task > 1)
 				{
-					await ms_mid_task_latest;
+					try
+					{
+						await ms_mid_task_latest;
+					}
+					catch(Exception ex)
+					{
+						m_str_cancel = ex.ToString() + "\r\n";
+						return;
+					}
 				}
 				if (Lo_HttpTask.ms_lo_task_cur != null)
 				{
-					await Lo_HttpTask.ms_lo_task_cur;
+					try
+					{
+						await Lo_HttpTask.ms_lo_task_cur;
+					}
+					catch(Exception ex)
+					{
+						m_str_cancel = ex.ToString() + "\r\n";
+						return;
+					}
 				}
 				if (msb_Discnct_Started)
 				{
