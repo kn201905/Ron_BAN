@@ -10,6 +10,7 @@ namespace Ron_BAN
 {
 	static partial class Drrr_Host2
 	{
+/*
 		static class HttpScheduler
 		{
 			public static Task Set(HttpTask http_task)
@@ -19,7 +20,7 @@ namespace Ron_BAN
 				return task;
 			}
 		}
-
+*/
 		///////////////////////////////////////////////////////////////////////////////////////
 
 		public abstract class HttpTask
@@ -33,6 +34,14 @@ namespace Ron_BAN
 
 //			public abstract uint CountAsKind();  // 現在実行中のタスク ＋ キューされてるタスク
 			public abstract void DecCount_AsKind();
+
+			public Task DoWork()
+			{
+				// 処理中の HttpTask、または、SendAsync() の Task が返される
+				Task task = this.Queueing();
+				this.SetLatestTask(task);
+				return task;
+			}
 		}
 
 		// ------------------------------------------------------------------------------------
