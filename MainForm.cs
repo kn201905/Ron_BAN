@@ -156,7 +156,10 @@ namespace Ron_BAN
 
 			try
 			{
-				Drrr_Host2.HttpTask postMsg_task = await Drrr_Host2.PostMsg(msg_to_post);
+
+				Drrr_Host2.HttpTask postMsg_task = Drrr_Host2.PostMsg_Task_Factory.Create(msg_to_post);
+				await postMsg_task.DoWork();
+
 				mb_postMsg = false;
 				m_Btn_postMsg.Enabled = true;
 
@@ -252,7 +255,9 @@ namespace Ron_BAN
 			byte[] bytes_utf8;
 			try
 			{
-				Drrr_Host2.HttpTask getJSON_task = await Drrr_Host2.GetJSON();
+				Drrr_Host2.HttpTask getJSON_task = Drrr_Host2.GetJSON_Task_Factory.Create();
+				await getJSON_task.DoWork();
+
 				mb_getJSON = false;
 				m_Btn_getJSON.Enabled = true;
 
