@@ -171,20 +171,37 @@ namespace Ron_BAN
 				try
 				{
 					ma_Btn_BAN[idx_btn].Enabled = false;
-					Drrr_Host2.HttpTask ban_task = await Drrr_Host2.Ban_byUid(ma_uid_on_room[idx_btn]);
-
-					if (ban_task.m_str_cancel != null)
+					Drrr_Host2.HttpTask ban_usr_task = Drrr_Host2.BanUsr_Task_Factory.Create(ma_uid_on_room[idx_btn]);
+					if (ban_usr_task.m_str_cancel == null)
 					{
-						MainForm.WriteStatus($"!!! 「Ban_byUid」がキャンセルされました。\r\n{ban_task.m_str_cancel}");
+						try
+						{
+							await ban_usr_task.DoWork();
+						}
+						catch (Exception ex)
+						{
+							ban_usr_task.m_str_cancel = ex.ToString() + "\r\n";
+						}
+					}
+
+					if (ban_usr_task.m_str_cancel != null)
+					{
+						MainForm.WriteStatus($"!!! 「Ban_byUid」がキャンセルされました。\r\n{ban_usr_task.m_str_cancel}");
 						ma_Btn_BAN[idx_btn].Enabled = true;
 						return;
 					}
 
 					// 受信メッセージを表示する
-					byte[] bytes_utf8 = await ban_task.m_http_res.Content.ReadAsByteArrayAsync();
+					byte[] bytes_utf8 = await ban_usr_task.m_http_res.Content.ReadAsByteArrayAsync();
 					m_sb_ban_ret_msg.Clear();
 					m_sb_ban_ret_msg.Append(System.Text.Encoding.UTF8.GetString(bytes_utf8));
 					m_sb_ban_ret_msg.Append($"-> [{ma_Btn_BAN[idx_btn].Text}]\r\n");
+
+					// 強制退室 or 部屋にいませんでした の２択になるため、その判定が必要
+					string ret_str = m_sb_ban_ret_msg.ToString();
+					if (ret_str.Contains("強制退室") == false)
+					{ ma_Btn_BAN[idx_btn].Enabled = true; }
+
 					MainForm.WriteStatus(m_sb_ban_ret_msg.ToString());
 				}
 				catch (Exception ex)
