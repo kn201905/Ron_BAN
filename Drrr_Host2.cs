@@ -245,7 +245,7 @@ namespace Ron_BAN
 		}
 		
 		///////////////////////////////////////////////////////////////////////////////////////
-
+/*
 		public static async Task<HttpTask> GetJSON()
 		{
 			HttpTask getJSON_task = GetJSON_Task_Factory.Create();
@@ -261,8 +261,8 @@ namespace Ron_BAN
 			}
 			return getJSON_task;  // getJSON_task にエラーも含めた実行結果が代入されている
 		}
-
-		static class GetJSON_Task_Factory
+*/
+		public static class GetJSON_Task_Factory
 		{
 			const int MAX_getJSON_task = 1;
 
@@ -279,7 +279,7 @@ namespace Ron_BAN
 		}
 
 		// ------------------------------------------------------------------------------------
-		
+/*		
 		public static async Task<HttpTask> PostMsg(string msg_to_post)
 		{
 			HttpTask postMsg_task = PostMsg_Task_Factory.Create(msg_to_post);
@@ -295,8 +295,8 @@ namespace Ron_BAN
 			}
 			return postMsg_task;  // postMsg_task にエラーも含めた実行結果が代入されている
 		}
-
-		static class PostMsg_Task_Factory
+*/
+		public static class PostMsg_Task_Factory
 		{
 			const uint MAX_postMsg_task = 3;
 
@@ -313,24 +313,8 @@ namespace Ron_BAN
 		}
 
 		// ------------------------------------------------------------------------------------
-		
-		public static async Task<HttpTask> Ban_byUid(string uid_to_ban)
-		{
-			HttpTask banUsr_task = Ban_byUid_Task_Factory.Create(uid_to_ban);
-			if (banUsr_task.m_str_cancel != null) { return banUsr_task; }
 
-			try
-			{
-				await HttpScheduler.Set(banUsr_task);
-			}
-			catch(Exception ex)
-			{
-				banUsr_task.m_str_cancel = ex.ToString() + "\r\n";
-			}
-			return banUsr_task;  // banUsr_task にエラーも含めた実行結果が代入されている
-		}
-
-		static class Ban_byUid_Task_Factory
+		public static class BanUsr_Task_Factory
 		{
 			const uint MAX_banUsr_task = 3;
 
