@@ -40,8 +40,6 @@ namespace Ron_BAN
 		// ------------------------------------------------------------------------------------
 		void Create_BanCtrls()
 		{
-			Font font_meiyo_Ke_P = new Font("MeiryoKe_PGothic", 9F, FontStyle.Regular, GraphicsUnit.Point, ((byte)(128)));
-
 			{
 				int top_btn = TOP_Btn_BAN;
 				Size size_btn = new Size(WIDTH_Btn_BAN, HEIGHT_Btn_BAN);
@@ -50,7 +48,7 @@ namespace Ron_BAN
 				{
 					Button btn = new Button();
 
-					btn.Font = font_meiyo_Ke_P;
+					btn.Font = MainForm.ms_meiryo_Ke_P_9pt;
 					btn.Location = new Point(0, top_btn);
 					top_btn += HEIGHT_Line;
 					btn.Size = size_btn;
@@ -74,7 +72,7 @@ namespace Ron_BAN
 				{
 					TextBox tbox = new TextBox();
 
-					tbox.Font = font_meiyo_Ke_P;
+					tbox.Font = MainForm.ms_meiryo_Ke_P_9pt;
 					tbox.Location = new Point(LEFT_TBox_BAN, top_tbox);
 					top_tbox += HEIGHT_Line;
 					tbox.Size = size_tbox;
@@ -95,18 +93,18 @@ namespace Ron_BAN
 		void Update_BanCtrl()
 		{
 			List<UInfo> ary_uinfo_on_room = UInfo_onRoom.msa_uinfo;
-			int num_on_room = Math.Min(NUM_Btn_BAN, ary_uinfo_on_room.Count);
+			int c_num_on_room = Math.Min(NUM_Btn_BAN, ary_uinfo_on_room.Count);
 			
-			for (int idx = 0; idx < num_on_room; idx++)
+			for (int idx = 0; idx < c_num_on_room; idx++)
 			{
 				UInfo uinfo = ary_uinfo_on_room[idx];
 				if (ma_id_this_session[idx] != uinfo.m_id_this_session)
 				{
 					ma_Btn_BAN[idx].Text = uinfo.m_uname;
-					ma_TBox_BAN_info[idx].Text
-							= $"[{string.Join(", ", uinfo.m_unames_this_session)}] / {uinfo.m_uid.m_str_uid}";
-					ma_id_this_session[idx] = uinfo.m_id_this_session;
+					ma_TBox_BAN_info[idx].Text = $"[{string.Join(", ", uinfo.m_unames_this_session)}] / {uinfo.m_uid.m_str_uid}";
+					ma_TBox_BAN_info[idx].BackColor = Color.White;
 
+					ma_id_this_session[idx] = uinfo.m_id_this_session;
 					ma_uid_on_room[idx] = uinfo.m_uid.m_str_uid;
 					ma_encip_exit_usr[idx] = null;
 
@@ -121,23 +119,23 @@ namespace Ron_BAN
 				List<int> ary_eusr_id_this_session = ExitEip_onTalks.msa_id_this_session;
 
 				int idx_eusr = ary_eusr_encip.Count;
-				idx_tmnt = Math.Min(NUM_Btn_BAN, num_on_room + idx_eusr);
+				idx_tmnt = Math.Min(NUM_Btn_BAN, c_num_on_room + idx_eusr);
 				idx_eusr--;  // eusr は、後方から処理をしていく
 
-				for (int idx = num_on_room; idx < idx_tmnt; idx++)
+				for (int idx = c_num_on_room; idx < idx_tmnt; idx++)
 				{
 					if (ma_id_this_session[idx] != ary_eusr_id_this_session[idx_eusr])
 					{
-						var eusr_unames = ExitEip_onTalks.msa_unames_on_talks[idx_eusr];
-						ma_Btn_BAN[idx].Text = string.Join(", ", eusr_unames);
-						ma_TBox_BAN_info[idx].Text
-								= $"[{string.Join(", ", eusr_unames)}] / {ary_eusr_encip[idx_eusr]}";
-						ma_id_this_session[idx] = ary_eusr_id_this_session[idx_eusr];
+						string eusr_unames = string.Join(", ", ExitEip_onTalks.msa_unames_on_talks[idx_eusr]);
+						ma_Btn_BAN[idx].Text = eusr_unames;
+						ma_TBox_BAN_info[idx].Text = $"[{eusr_unames}] / {ary_eusr_encip[idx_eusr]}";
+						ma_TBox_BAN_info[idx].BackColor = Color.Gainsboro;
 
+						ma_id_this_session[idx] = ary_eusr_id_this_session[idx_eusr];
 						ma_uid_on_room[idx] = null;
 						ma_encip_exit_usr[idx] = ary_eusr_encip[idx_eusr];
 
-						if ((ExitEip_onTalks.msa_flags[idx] & ExitEip_onTalks.ExitUsr_Stt.EN_Banned) == 0)
+						if ((ExitEip_onTalks.msa_flags[idx_eusr] & ExitEip_onTalks.ExitUsr_Stt.EN_Banned) == 0)
 						{ ma_Btn_BAN[idx].Enabled = true; }
 						else
 						{ ma_Btn_BAN[idx].Enabled = false; }
@@ -214,6 +212,7 @@ namespace Ron_BAN
 			else
 			{
 				// 現時点では、退室者の対応を行っていない
+				MainForm.WriteStatus("この操作は、まだ未実装です。\r\n");
 			}
 		}
 	}
