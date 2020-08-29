@@ -10,19 +10,6 @@ namespace Ron_BAN
 {
 	static partial class Drrr_Host2
 	{
-/*
-		static class HttpScheduler
-		{
-			public static Task Set(HttpTask http_task)
-			{
-				Task task = http_task.Queueing();
-				http_task.SetLatestTask(task);
-				return task;
-			}
-		}
-*/
-		///////////////////////////////////////////////////////////////////////////////////////
-
 		public abstract class HttpTask
 		{
 			public string m_str_cancel = null;  // これが null でない場合、タスクがキャンセルされたことを表す
@@ -32,7 +19,7 @@ namespace Ron_BAN
 			public abstract Task Queueing();
 			public abstract void SetLatestTask(Task task);
 
-//			public abstract uint CountAsKind();  // 現在実行中のタスク ＋ キューされてるタスク
+//			public abstract int Count_AsKind();  // 現在実行中のタスク ＋ キューされてるタスク
 			public abstract void DecCount_AsKind();
 
 			public Task DoWork()
@@ -63,6 +50,7 @@ namespace Ron_BAN
 					}
 					catch(Exception ex)
 					{
+						this.DecCount_AsKind();
 						m_str_cancel = ex.ToString() + "\r\n";
 						return;
 					}
@@ -75,6 +63,7 @@ namespace Ron_BAN
 					}
 					catch(Exception ex)
 					{
+						this.DecCount_AsKind();
 						m_str_cancel = ex.ToString() + "\r\n";
 						return;
 					}
@@ -121,6 +110,7 @@ namespace Ron_BAN
 					}
 					catch(Exception ex)
 					{
+						this.DecCount_AsKind();
 						m_str_cancel = ex.ToString() + "\r\n";
 						return;
 					}
@@ -133,6 +123,7 @@ namespace Ron_BAN
 					}
 					catch(Exception ex)
 					{
+						this.DecCount_AsKind();
 						m_str_cancel = ex.ToString() + "\r\n";
 						return;
 					}
@@ -173,17 +164,34 @@ namespace Ron_BAN
 
 			public override void SetLatestTask(Task task) {}
 			public override async Task Queueing() {}
+	
 			public override void DecCount_AsKind() {}
 		}
 		#pragma warning restore CS1998
 		
 		// ------------------------------------------------------------------------------------
+
+		public static class GetJSON_Task_Factory
+		{
+			const int MAX_getJSON_task = 1;
+
+			public static HttpTask Create()
+			{
+				if (msb_Discnct_Started)
+				{ return new Err_HttpTask("+++ 切断処理が開始されました。GetJSON() はキャンセルされました。\r\n"); }
+
+				if (GetJSON_Task.ms_num_getJSON_task >= MAX_getJSON_task)
+				{ return new Err_HttpTask("+++ GetJSON() が２重に実行されました。GetJSON() はキャンセルされました。\r\n"); }
+
+				return new GetJSON_Task();
+			}
+		}
+
 		class GetJSON_Task : Lo_HttpTask
 		{
 			static Uri ms_uri_getJSON = new Uri("http://drrrkari.com/ajax.php");
 			static Uri ms_uri_referer_getJSON = new Uri("http://drrrkari.com/room/");
 			static ByteArrayContent ms_content_getJSON = new ByteArrayContent(new byte[0]);
-			public static int ms_num_getJSON_task = 0;
 
 			public GetJSON_Task()
 			{
@@ -196,6 +204,8 @@ namespace Ron_BAN
 				ms_num_getJSON_task++;
 			}
 
+			// -----------------------------------------------
+			public static int ms_num_getJSON_task = 0;
 			public override void DecCount_AsKind()
 			{
 				if (ms_num_getJSON_task <= 0)
@@ -206,13 +216,29 @@ namespace Ron_BAN
 		}
 
 		// ------------------------------------------------------------------------------------
+
+		public static class PostMsg_Task_Factory
+		{
+			const uint MAX_postMsg_task = 3;
+
+			public static HttpTask Create(string msg_to_post)
+			{
+				if (msb_Discnct_Started)
+				{ return new Err_HttpTask("+++ 切断処理が開始されました。PostMsg() はキャンセルされました。\r\n"); }
+
+				if (PostMsg_Task.ms_num_post_msg_task >= MAX_postMsg_task)
+				{ return new Err_HttpTask("+++ PostMsg() が連続して実行されました。PostMsg() はキャンセルされました。\r\n"); }
+
+				return new PostMsg_Task(msg_to_post);
+			}
+		}
+
 		class PostMsg_Task : Lo_HttpTask
 		{
 			static Uri ms_uri_postMsg = new Uri("http://drrrkari.com/room/?ajax=1");
 			static Uri ms_uri_referer_postMsg = new Uri("http://drrrkari.com/room/");
 			static MediaTypeHeaderValue ms_content_type_postMsg
 				= new MediaTypeHeaderValue("application/x-www-form-urlencoded") { CharSet = "UTF-8" };
-			public static int ms_num_post_msg_task = 0;
 
 			public PostMsg_Task(string msg_to_post)
 			{
@@ -228,6 +254,8 @@ namespace Ron_BAN
 				ms_num_post_msg_task++;
 			}
 
+			// -----------------------------------------------
+			public static int ms_num_post_msg_task = 0;
 			public override void DecCount_AsKind()
 			{
 				if (ms_num_post_msg_task <= 0)
@@ -238,13 +266,29 @@ namespace Ron_BAN
 		}
 
 		// ------------------------------------------------------------------------------------
+
+		public static class BanUsr_Task_Factory
+		{
+			const uint MAX_banUsr_task = 3;
+
+			public static HttpTask Create(string uid_to_ban)
+			{
+				if (msb_Discnct_Started)
+				{ return new Err_HttpTask("+++ 切断処理が開始されました。BanUsr() はキャンセルされました。\r\n"); }
+
+				if (BanByUid_Task.ms_num_ban_task >= MAX_banUsr_task)
+				{ return new Err_HttpTask("+++ BanUsr() が連続して実行されました。BanUsr() はキャンセルされました。\r\n"); }
+
+				return new BanByUid_Task(uid_to_ban);
+			}
+		}
+
 		class BanByUid_Task : Mid_HttpTask
 		{
 			static Uri ms_uri_ban = new Uri("http://drrrkari.com/room/?ajax=1");
 			static Uri ms_uri_referer_ban = new Uri("http://drrrkari.com/room/");
 			static MediaTypeHeaderValue ms_content_type_ban
 				= new MediaTypeHeaderValue("application/x-www-form-urlencoded") { CharSet = "UTF-8" };
-			public static int ms_num_ban_task = 0;
 
 			public BanByUid_Task(string uid_to_ban)
 			{
@@ -260,6 +304,8 @@ namespace Ron_BAN
 				ms_num_ban_task++;
 			}
 
+			// -----------------------------------------------
+			public static int ms_num_ban_task = 0;
 			public override void DecCount_AsKind()
 			{
 				if (ms_num_ban_task <= 0)
