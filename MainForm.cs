@@ -118,17 +118,6 @@ namespace Ron_BAN
 			string str_uname = m_TBox_uname.Text;
 			string str_room_name = m_TBox_roomname.Text;
 
-
-/*
-			if (m_CmbBox_str_icon.SelectedIndex > 0)
-			{
-				MainForm.WriteStatus(m_CmbBox_str_icon.SelectedIndex + "\r\n");
-				MainForm.WriteStatus(m_CmbBox_str_icon.SelectedItem.ToString() + "\r\n");
-				return;
-			}
-*/
-
-
 			if (str_uname.Length == 0 || m_CmbBox_str_icon.SelectedIndex < 0 || str_room_name.Length == 0)
 			{
 				MessageBox.Show("! ユーザ名等に空欄があります。");
@@ -206,7 +195,6 @@ namespace Ron_BAN
 
 			try
 			{
-
 				Drrr_Host2.HttpTask postMsg_task = Drrr_Host2.PostMsg_Task_Factory.Create(msg_to_post);
 				await postMsg_task.DoWork();
 
