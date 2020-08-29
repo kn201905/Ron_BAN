@@ -4,11 +4,17 @@ using System.IO;
 using System.Text;
 using System.Timers;
 using System.Threading.Tasks;
+using System.Drawing;
 
 namespace Ron_BAN
 {
 	public partial class MainForm : Form
 	{
+		// リソースの節約
+		static public Font ms_meiryo_Ke_P_9pt = null;
+		static public Font ms_meiryo_Ke_P_8pt = null;
+		static public Font ms_meiryo_8pt = null;
+
 		// タイマ関連
 		bool mb_timer_enabled = false;
 		System.Timers.Timer m_timer_getJSON = null;
@@ -22,6 +28,39 @@ namespace Ron_BAN
 		public MainForm()
 		{
 			InitializeComponent();
+
+			// リソース節約のためのコード
+			ms_meiryo_Ke_P_9pt = new Font("MeiryoKe_PGothic", 9F, FontStyle.Regular, GraphicsUnit.Point, ((byte)(128)));
+
+			m_Btn_connect.Font = ms_meiryo_Ke_P_9pt;
+			m_Btn_postMsg.Font = ms_meiryo_Ke_P_9pt;
+			m_Btn_getJSON.Font = ms_meiryo_Ke_P_9pt;
+			m_Btn_timer_JSON.Font = ms_meiryo_Ke_P_9pt;
+
+			m_TBox_PostMsg.Font = ms_meiryo_Ke_P_9pt;
+			m_Lbl_timer_elapsed.Font = ms_meiryo_Ke_P_9pt;
+			label1.Font = ms_meiryo_Ke_P_9pt;
+
+			m_btn_test_1.Font = ms_meiryo_Ke_P_9pt;
+			m_btn_test_2.Font = ms_meiryo_Ke_P_9pt;
+			m_btn_test_3.Font = ms_meiryo_Ke_P_9pt;
+
+			ms_meiryo_Ke_P_8pt = new Font("MeiryoKe_PGothic", 8.25F, FontStyle.Regular, GraphicsUnit.Point, ((byte)(128)));
+
+			m_TBox_uname.Font = ms_meiryo_Ke_P_8pt;
+			m_TBox_roomname.Font = ms_meiryo_Ke_P_8pt;
+			label2.Font = ms_meiryo_Ke_P_8pt;
+			label3.Font = ms_meiryo_Ke_P_8pt;
+			label4.Font = ms_meiryo_Ke_P_8pt;
+
+			ms_meiryo_8pt = new Font("メイリオ", 8.25F, FontStyle.Regular, GraphicsUnit.Point, ((byte)(128)));
+
+			m_RBox_usrMsg.Font = ms_meiryo_8pt;
+			m_RBox_status.Font = ms_meiryo_8pt;
+
+			m_CmbBox_str_icon.Font = ms_meiryo_8pt;
+
+			// --------------------------------------------
 
 			m_timer_getJSON = new System.Timers.Timer(m_timer_interval_msec);
 			m_timer_getJSON.Elapsed += OnTimer_GetJSON;
@@ -76,11 +115,21 @@ namespace Ron_BAN
 
 		async void OnClk_ConnectBtn(object sender, EventArgs e)
 		{
-			string str_uname = m_TB0x_uname.Text;
-			string str_icon = m_TBox_str_icon.Text;
+			string str_uname = m_TBox_uname.Text;
 			string str_room_name = m_TBox_roomname.Text;
 
-			if (str_uname.Length == 0 || str_icon.Length == 0 || str_room_name.Length == 0)
+
+/*
+			if (m_CmbBox_str_icon.SelectedIndex > 0)
+			{
+				MainForm.WriteStatus(m_CmbBox_str_icon.SelectedIndex + "\r\n");
+				MainForm.WriteStatus(m_CmbBox_str_icon.SelectedItem.ToString() + "\r\n");
+				return;
+			}
+*/
+
+
+			if (str_uname.Length == 0 || m_CmbBox_str_icon.SelectedIndex < 0 || str_room_name.Length == 0)
 			{
 				MessageBox.Show("! ユーザ名等に空欄があります。");
 				return;
@@ -96,7 +145,8 @@ namespace Ron_BAN
 					// 接続処理開始
 					// アイコン名は girl, moza, tanaka, kanra, usa, gg, orange, zaika, 
 					// setton, zawa, neko, purple, kai, bakyura, neko2, numakuro など
-					string ret_str = await Drrr_Host2.Establish_cnct(str_uname, str_icon, str_room_name);
+					string ret_str = await Drrr_Host2.Establish_cnct(
+													str_uname, m_CmbBox_str_icon.SelectedItem.ToString(), str_room_name);
 					if (ret_str != null)
 					{
 						WriteStatus($"+++ 失敗メッセージ： {ret_str}\r\n\r\n");
