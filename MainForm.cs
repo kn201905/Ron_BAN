@@ -6,6 +6,10 @@ using System.Timers;
 using System.Threading.Tasks;
 using System.Drawing;
 
+using System.Collections.Generic;
+using System.Runtime.Serialization.Formatters.Binary;
+using System.Runtime.Serialization;
+
 namespace Ron_BAN
 {
 	public partial class MainForm : Form
@@ -17,9 +21,13 @@ namespace Ron_BAN
 
 		// タイマ関連
 		bool mb_timer_enabled = false;
-		System.Timers.Timer m_timer_getJSON = null;
+		System.Timers.Timer m_Timer_getJSON = null;
 		uint m_timer_elapsed_msec = 0;
 		uint m_timer_interval_msec = 2000;
+
+		bool mb_timer_delayBan_enabled = false;
+		System.Timers.Timer m_Timer_delayBAN = null;
+		const int MSEC_timer_intvl_delayBAN = 5000;
 
 		const uint c_SEC_intvl_confirmation = 20 * 60;  // 20分毎に接続確認
 		uint m_nextsec_cnct_onfirmation = c_SEC_intvl_confirmation;
@@ -62,10 +70,15 @@ namespace Ron_BAN
 
 			// --------------------------------------------
 
-			m_timer_getJSON = new System.Timers.Timer(m_timer_interval_msec);
-			m_timer_getJSON.Elapsed += OnTimer_GetJSON;
-			m_timer_getJSON.AutoReset = true;
-			m_timer_getJSON.SynchronizingObject = this;
+			m_Timer_getJSON = new System.Timers.Timer(m_timer_interval_msec);
+			m_Timer_getJSON.Elapsed += OnTimer_GetJSON;
+			m_Timer_getJSON.AutoReset = true;
+			m_Timer_getJSON.SynchronizingObject = this;
+
+			m_Timer_delayBAN = new System.Timers.Timer(MSEC_timer_intvl_delayBAN);
+			m_Timer_delayBAN.Elapsed += OnTimer_delayBAN;
+			m_Timer_delayBAN.AutoReset = true;
+			m_Timer_delayBAN.SynchronizingObject = this;
 
 			ms_RBox_status = m_RBox_status;
 			m_RBox_status.SelectionTabs = new int[] { 30 };
@@ -75,15 +88,18 @@ namespace Ron_BAN
 			ms_RBox_usrMsg.SelectionTabs = new int[] { 30 };
 			ms_RBox_usrMsg.LanguageOption = RichTextBoxLanguageOptions.UIFonts;  // 行間を狭くする
 
-			this.Create_BanCtrls();
+			// BanCtrl を生成
+			BanCtrls_Ctrlr.Init();
+			// BanCtrl の GUI を生成
+			this.Create_BanCtrls_GUI();
 
 			MainForm.WriteStatus("--- 起動しました\r\n");
 		}
 
 		~MainForm()
 		{
-			if (mb_timer_enabled) { m_timer_getJSON.Stop(); }
-			m_timer_getJSON.Dispose();
+			if (mb_timer_enabled) { m_Timer_getJSON.Stop(); }
+			m_Timer_getJSON.Dispose();
 
 			Drrr_Host2.Dispose();
 		}
@@ -146,7 +162,7 @@ namespace Ron_BAN
 				}
 				else
 				{
-					m_timer_getJSON.Stop();
+					m_Timer_getJSON.Stop();
 					m_Btn_timer_JSON.Enabled = false;
 
 					m_Btn_connect.Text = "切断済み";
@@ -232,7 +248,7 @@ namespace Ron_BAN
 			{
 				mb_timer_enabled = false;
 				m_Btn_timer_JSON.Text = "タイマ開始";
-				m_timer_getJSON.Stop();
+				m_Timer_getJSON.Stop();
 			}
 			else
 			{
@@ -246,7 +262,7 @@ namespace Ron_BAN
 
 			mb_timer_enabled = true;
 			m_Btn_timer_JSON.Text = "タイマ停止";
-			m_timer_getJSON.Start();
+			m_Timer_getJSON.Start();
 		}
 
 		// CS4014: 呼び出しの結果に 'await' 演算子を適用することを検討してください。
@@ -322,7 +338,7 @@ namespace Ron_BAN
 				StringBuilder sb = DB_cur.Anlz_RoomJSON(bytes_utf8);
 				if (sb.Length > 0) { MainForm.WriteMsg(sb.ToString()); }
 
-				Update_BanCtrl();
+				Update_BanCtrls();
 			}
 			catch (Exception ex)
 			{
@@ -335,20 +351,55 @@ namespace Ron_BAN
 
 		///////////////////////////////////////////////////////////////////////////////////////
 		// テスト１
+
+		static SortedSet<string> msa_test_set = new SortedSet<string>();
 		void m_btn_test_1_Click(object sender, EventArgs e)
 		{
+			msa_test_set.Add("test 1");
+			msa_test_set.Add("あいうえおかきくけこ");
+			msa_test_set.Add("123abcdefg \"012\"");
+
+			using (FileStream fs = new FileStream(@"Z:test.dat", FileMode.Create))
+			{
+				IFormatter formatter = new BinaryFormatter();
+				formatter.Serialize(fs, msa_test_set);
+			}
 		}
 
 		// ------------------------------------------------------------------------------------
 		// テスト２
 		void m_btn_test_2_Click(object sender, EventArgs e)
 		{
+			MainForm.WriteMsg("m_btn_test_2_Click() \r\n");
 		}
 
 		// ------------------------------------------------------------------------------------
 		// テスト３
 		void m_btn_test_3_Click(object sender, EventArgs e)
 		{
+			try
+			{
+				MainForm.WriteMsg("--- Before ThrowTest() ---\r\n");
+				ThrowTest();
+				MainForm.WriteMsg("--- After Start ---\r\n");
+			}
+			catch (Exception ex)
+			{
+				MainForm.WriteMsg($"m_btn_test_3_Click::catch()： {ex.ToString()}");
+			}
+		}
+
+		static void ThrowTest()
+		{
+			try
+			{
+				MainForm.WriteMsg("--- Before throw exception ---\r\n");
+				throw new Exception("throws in ThrowTest()\r\n");
+			}
+			finally
+			{
+				MainForm.WriteMsg("ThrowTest::finally()\r\n");
+			}
 		}
 	}
 }
