@@ -30,6 +30,16 @@ namespace Ron_BAN
 			public Button m_Btn_ban = new Button();
 			public TextBox m_TBox_info = new TextBox();
 
+			public void OnClk_Btn_BAN(object sender, EventArgs e)
+			{
+				m_ban_ctrl.OnClk_Btn_BAN();
+			}
+
+			public void OnClk_Btn_delay_ban(object sender, EventArgs e)
+			{
+				m_ban_ctrl.OnClk_Btn_delay_ban();
+			}
+
 			// 未設定は 0、入室者は 正の数、退室者は 負の数
 			public int m_id_this_session = 0;
 			public BanCtrl m_ban_ctrl = null;
@@ -310,13 +320,16 @@ namespace Ron_BAN
 			// -----------------------------------------------
 			System.Text.StringBuilder m_sb_ban_ret_msg = new System.Text.StringBuilder(50);
 
-			// TODO： DB_static への登録
-
-
-			public async void OnClk_Btn_BAN(object sender, EventArgs e)
+			public async void OnClk_Btn_BAN()
 			{
+//				MainForm.WriteStatus($"OnClk_Btn_BAN()： m_id_this_session -> {m_id_this_session}\r\n");
+
 				if (m_id_this_session == 0)
-				{ throw new Exception("!!! エラー検出： m_id_this_session == 0 in BanCtrl.OnClk_Btn_BAN()"); }
+				{ MainForm.WriteStatus("!!! エラー検出： m_id_this_session == 0 in BanCtrl.OnClk_Btn_BAN()\r\n"); return; }
+//				{ throw new Exception("!!! エラー検出： m_id_this_session == 0 in BanCtrl.OnClk_Btn_BAN()"); }
+
+				// まず DB_static に encip を登録しておく
+				DB_static.Regist(m_encip);
 
 				mb_Rgst_ban = true;
 				mb_Exec_Ban = true;
@@ -324,9 +337,9 @@ namespace Ron_BAN
 				m_GUI.m_Btn_ban.Enabled = false;
 				m_GUI.m_Btn_delay_ban.Enabled = false;
 
-				// まず、on_room なのか 退室者 なのかの判断
 				if (m_id_this_session > 0)
 				{
+					// 入室者の BAN 処理
 					m_GUI.m_TBox_info.BackColor = Color.HotPink;
 
 					Drrr_Host2.HttpTask ban_usr_task = Drrr_Host2.BanUsr_Task_Factory.Create(m_uinfo.m_uid.m_str_uid);
@@ -369,11 +382,18 @@ namespace Ron_BAN
 				}
 				else
 				{
+					// 退室者の BAN 処理
 					m_GUI.m_TBox_info.BackColor = Color.LightPink;
 
 					// 退室者の eip to ban 登録
 					ExitEip_onTalks.Regist_to_BAN(m_encip);
 				}
+			}
+
+			// -----------------------------------------------
+			public void OnClk_Btn_delay_ban()
+			{
+				MainForm.WriteStatus($"遅延BAN 機能は未実装です。-> [{m_uinfo.m_uname}]\r\n");
 			}
 		}
 
@@ -387,7 +407,8 @@ namespace Ron_BAN
 
 			for (int idx = 0; idx < NUM_Btn_BAN; top_btn += HEIGHT_Line, idx++)
 			{
-				msa_BanCtrl_GUIs[idx] = new BanCtrl_GUI();
+				BanCtrl_GUI btn_ctrl_GUI = new BanCtrl_GUI();
+				msa_BanCtrl_GUIs[idx] = btn_ctrl_GUI;
 
 				// ---------------------------
 				Button delay_btn = new Button();
@@ -398,6 +419,7 @@ namespace Ron_BAN
 				delay_btn.Text = "遅延ban";
 				delay_btn.Enabled = false;
 				delay_btn.UseVisualStyleBackColor = true;
+				delay_btn.Click += btn_ctrl_GUI.OnClk_Btn_delay_ban;
 
 				splitContainer1.Panel1.Controls.Add(delay_btn);
 				msa_BanCtrl_GUIs[idx].m_Btn_delay_ban = delay_btn;
@@ -412,6 +434,7 @@ namespace Ron_BAN
 				btn.Enabled = false;
 				btn.UseVisualStyleBackColor = true;
 				btn.TextAlign = ContentAlignment.MiddleLeft;
+				btn.Click += btn_ctrl_GUI.OnClk_Btn_BAN;
 
 				splitContainer1.Panel1.Controls.Add(btn);
 				msa_BanCtrl_GUIs[idx].m_Btn_ban = btn;
@@ -434,6 +457,7 @@ namespace Ron_BAN
 		int[] ma_btn_idx_to_ban = new int[NUM_Btn_BAN];
 		int m_tmnt_btn_idx_to_ban = 0;
 
+		// GetJSON() の後にコールされる
 		void Update_BanCtrls()
 		{
 			int c_num_on_room = Math.Min(NUM_Btn_BAN, UInfo_onRoom.msa_uinfo.Count);
@@ -450,16 +474,14 @@ namespace Ron_BAN
 				if (ban_ctrl_GUI.m_id_this_session != lead_id_this_session)
 				{
 					ban_ctrl = BanCtrls_Ctrlr.Update_RoomUsr(ban_ctrl, lead_id_this_session, idx, uinfo);
-
-					if (ban_ctrl.mb_Rgst_ban && ban_ctrl.mb_Exec_Ban == false)
-					{
-						ma_btn_idx_to_ban[m_tmnt_btn_idx_to_ban] = idx;
-						m_tmnt_btn_idx_to_ban++;
-					}
-				
 					ban_ctrl_GUI.m_id_this_session = lead_id_this_session;
 					ban_ctrl_GUI.m_ban_ctrl = ban_ctrl;
-					ban_ctrl_GUI.m_Btn_ban.Click += ban_ctrl.OnClk_Btn_BAN;
+				}
+
+				if (ban_ctrl.mb_Rgst_ban && ban_ctrl.mb_Exec_Ban == false)
+				{
+					ma_btn_idx_to_ban[m_tmnt_btn_idx_to_ban] = idx;
+					m_tmnt_btn_idx_to_ban++;
 				}
 				ban_ctrl = ban_ctrl.m_next;
 			}
@@ -483,12 +505,12 @@ namespace Ron_BAN
 
 						ban_ctrl_GUI.m_id_this_session = lead_id_this_session;
 						ban_ctrl_GUI.m_ban_ctrl = ban_ctrl;
-						ban_ctrl_GUI.m_Btn_ban.Click += ban_ctrl.OnClk_Btn_BAN;
 					}
 					ban_ctrl = ban_ctrl.m_next;
 				}
 			}
 
+			// 非使用の ban_ctrl_GUI の id_this_session をクリア
 			for (int idx_GUI = idx_tmnt; idx_GUI < NUM_Btn_BAN; idx_GUI++)
 			{
 				BanCtrl_GUI ban_ctrl_GUI = msa_BanCtrl_GUIs[idx_GUI];
@@ -503,11 +525,21 @@ namespace Ron_BAN
 				ban_ctrl_GUI.m_id_this_session = 0;
 			}
 
+			// 非使用の ban_ctrl の id_this_session をクリア
+			while (ban_ctrl != null)
+			{
+				if (ban_ctrl.m_id_this_session == 0) { break; }
+				
+				ban_ctrl.m_id_this_session = 0;
+				ban_ctrl = ban_ctrl.m_next;
+			}
+
 			// BanCtrl の表示更新を終えたタイミングで、即時 BAN 対象者がいたら BAN を実行する
 			for (int i = 0; i < m_tmnt_btn_idx_to_ban; i++)
 			{
-				msa_BanCtrl_GUIs[ma_btn_idx_to_ban[i]].m_ban_ctrl.OnClk_Btn_BAN(null, null);
+				msa_BanCtrl_GUIs[ma_btn_idx_to_ban[i]].m_ban_ctrl.OnClk_Btn_BAN();
 			}
+			m_tmnt_btn_idx_to_ban = 0;
 		}
 
 		// ------------------------------------------------------------------------------------
