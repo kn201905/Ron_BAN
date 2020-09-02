@@ -4,4 +4,5 @@
 
 # このリポジトリにあるコードを作成したきっかけ
 
-<img src="ron.jpg" alt="ronの荒らし方" title="ronの荒らし方"">
+![ron_arashi](https://github.com/kn201905/Ron_BAN/blob/master/ron.jpg)
+
