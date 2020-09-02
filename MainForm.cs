@@ -93,6 +93,9 @@ namespace Ron_BAN
 			// BanCtrl の GUI を生成
 			this.Create_BanCtrls_GUI();
 
+			// encip の記録ファイルを読み込む
+			DB_static.Load_fromFile();
+
 			MainForm.WriteStatus("--- 起動しました\r\n");
 		}
 
@@ -242,7 +245,7 @@ namespace Ron_BAN
 			GetJSON(DateTime.Now);
 		}
 
-		void OnClk_JSON_TimerBtn(object sender, EventArgs e)
+		void OnClk_Btn_Toggle_Timer(object sender, EventArgs e)
 		{
 			if (mb_timer_enabled)
 			{
@@ -253,6 +256,8 @@ namespace Ron_BAN
 			else
 			{
 				StartTimer_GetJSON();
+				// 開始ボタンを押した直後に GetJSON を一度実行しておく
+				GetJSON(DateTime.Now);
 			}
 		}
 
@@ -265,7 +270,8 @@ namespace Ron_BAN
 			m_Timer_getJSON.Start();
 		}
 
-		// CS4014: 呼び出しの結果に 'await' 演算子を適用することを検討してください。
+		// タイマーで呼び出される関数
+		// CS4014: 呼び出しの結果に 'await' 演算子を適用することを検討してください
 		#pragma warning disable CS4014
 		async void OnTimer_GetJSON(Object src, ElapsedEventArgs ev_time)
 		{
@@ -349,28 +355,25 @@ namespace Ron_BAN
 			}
 		}
 
+		// ------------------------------------------------------------------------------------
+		private void MainForm_FormClosing(object sender, FormClosingEventArgs e)
+		{
+			DB_static.Save_toFile();
+		}
+
 		///////////////////////////////////////////////////////////////////////////////////////
 		// テスト１
-
-		static SortedSet<string> msa_test_set = new SortedSet<string>();
 		void m_btn_test_1_Click(object sender, EventArgs e)
 		{
-			msa_test_set.Add("test 1");
-			msa_test_set.Add("あいうえおかきくけこ");
-			msa_test_set.Add("123abcdefg \"012\"");
-
-			using (FileStream fs = new FileStream(@"Z:test.dat", FileMode.Create))
-			{
-				IFormatter formatter = new BinaryFormatter();
-				formatter.Serialize(fs, msa_test_set);
-			}
+			FileTest.Crt_TestData();
+			FileTest.Save_toFile();
 		}
 
 		// ------------------------------------------------------------------------------------
 		// テスト２
 		void m_btn_test_2_Click(object sender, EventArgs e)
 		{
-			MainForm.WriteMsg("m_btn_test_2_Click() \r\n");
+			FileTest.Load_fromFile();
 		}
 
 		// ------------------------------------------------------------------------------------
@@ -401,6 +404,50 @@ namespace Ron_BAN
 				MainForm.WriteMsg("ThrowTest::finally()\r\n");
 			}
 		}
+
+		// ------------------------------------------------------------------------------------
+		static void Test_Read_JsonFile()
+		{
+			try
+			{
+				Read_JsonFile(@"Y:\test_code\_sample1-1_knk.json");
+			}
+			catch (Exception ex)
+			{
+				MainForm.WriteStatus(ex.ToString());
+			}
+		}
+
+		static void Read_JsonFile(string filepath)
+		{
+			using (FileStream fs = File.OpenRead(filepath))
+			{
+				int bytes_file = (int)fs.Length;
+				byte[] buf_utf8 = new byte[bytes_file];
+				fs.Read(buf_utf8, 0, bytes_file);
+
+				StringBuilder sb = DB_cur.Anlz_RoomJSON(buf_utf8);
+				if (sb.Length > 0)
+				{
+					MainForm.WriteStatus(sb.ToString());
+				}
+			}
+		}
+
+		/*
+		void m_btn_proxy_Click(object sender, EventArgs e)
+		{
+			try
+			{
+				Drrr_Proxy.Init();
+				Drrr_Proxy.Get_index_html();
+			}
+			catch (Exception ex)
+			{
+				MainForm.WriteStatus(ex.ToString());
+			}
+		}
+		*/
 	}
 }
 
