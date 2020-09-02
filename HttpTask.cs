@@ -36,58 +36,47 @@ namespace Ron_BAN
 		{
 			static uint ms_num_lo_task = 0;  // 現在実行中のタスク ＋ キューされてるタスク
 			static Task ms_lo_task_latest = null;
-			public static Task<HttpResponseMessage> ms_lo_task_cur = null;
+			public static Task<HttpResponseMessage> ms_lo_task_cur = null;  // MidTask を割り込ませるためだけに利用
 
 			public override void SetLatestTask(Task task) { ms_lo_task_latest = task; }
 			public override async Task Queueing()
 			{
-				ms_num_lo_task++;
-				if (ms_num_lo_task > 1)
+				try
 				{
-					try
+					ms_num_lo_task++;
+					if (ms_num_lo_task > 1)
 					{
 						await ms_lo_task_latest;
 					}
-					catch(Exception ex)
-					{
-						this.DecCount_AsKind();
-						m_str_cancel = ex.ToString() + "\r\n";
-						return;
-					}
-				}
-				while (Mid_HttpTask.ms_num_mid_task > 0)
-				{
-					try
+					while (Mid_HttpTask.ms_num_mid_task > 0)
 					{
 						await Mid_HttpTask.ms_mid_task_latest;
 					}
-					catch(Exception ex)
+					if (msb_Discnct_Started)
 					{
-						this.DecCount_AsKind();
-						m_str_cancel = ex.ToString() + "\r\n";
+						m_str_cancel = "+++ 切断処理が開始されたため、タスク実行は中断されました。\r\n";
 						return;
 					}
-				}
-				if (msb_Discnct_Started)
-				{
-					m_str_cancel = "+++ 切断処理が開始されたため、タスク実行は中断されました。\r\n";
-					return;
-				}
 
-				try
-				{
-					ms_lo_task_cur = ms_http_client.SendAsync(m_http_req);
-					m_http_res = await ms_lo_task_cur;
+					try
+					{
+						ms_lo_task_cur = ms_http_client.SendAsync(m_http_req);
+						m_http_res = await ms_lo_task_cur;
+					}
+					finally
+					{
+						ms_lo_task_cur = null;
+					}
 				}
 				catch (Exception ex)
 				{
 					m_str_cancel = ex.ToString() + "\r\n";
 				}
-
-				ms_lo_task_cur = null;
-				this.DecCount_AsKind();
-
-				ms_num_lo_task--;
+				finally
+				{
+					ms_num_lo_task--;
+					this.DecCount_AsKind();
+				}
 			}
 		}
 
@@ -96,58 +85,47 @@ namespace Ron_BAN
 		{
 			public static uint ms_num_mid_task = 0;  // 現在実行中のタスク ＋ キューされてるタスク
 			public static Task ms_mid_task_latest = null;
-			public static Task<HttpResponseMessage> ms_mid_task_cur = null;
+			public static Task<HttpResponseMessage> ms_mid_task_cur = null;  // HiTask を割り込ませるためだけに利用（現在未使用）
 
 			public override void SetLatestTask(Task task) { ms_mid_task_latest = task; }
 			public override async Task Queueing()
 			{
-				ms_num_mid_task++;
-				if (ms_num_mid_task > 1)
+				try
 				{
-					try
+					ms_num_mid_task++;
+					if (ms_num_mid_task > 1)
 					{
 						await ms_mid_task_latest;
 					}
-					catch(Exception ex)
-					{
-						this.DecCount_AsKind();
-						m_str_cancel = ex.ToString() + "\r\n";
-						return;
-					}
-				}
-				if (Lo_HttpTask.ms_lo_task_cur != null)
-				{
-					try
+					if (Lo_HttpTask.ms_lo_task_cur != null)
 					{
 						await Lo_HttpTask.ms_lo_task_cur;
 					}
-					catch(Exception ex)
+					if (msb_Discnct_Started)
 					{
-						this.DecCount_AsKind();
-						m_str_cancel = ex.ToString() + "\r\n";
+						m_str_cancel = "+++ 切断処理が開始されたため、タスク実行は中断されました。";
 						return;
 					}
-				}
-				if (msb_Discnct_Started)
-				{
-					m_str_cancel = "+++ 切断処理が開始されたため、タスク実行は中断されました。";
-					return;
-				}
 
-				try
-				{
-					ms_mid_task_cur = ms_http_client.SendAsync(m_http_req);
-					m_http_res = await ms_mid_task_cur;
+					try
+					{
+						ms_mid_task_cur = ms_http_client.SendAsync(m_http_req);
+						m_http_res = await ms_mid_task_cur;
+					}
+					finally
+					{
+						ms_mid_task_cur = null;
+					}
 				}
 				catch (Exception ex)
 				{
 					m_str_cancel = ex.ToString() + "\r\n";
 				}
-
-				ms_mid_task_cur = null;
-				this.DecCount_AsKind();
-
-				ms_num_mid_task--;
+				finally
+				{
+					ms_num_mid_task--;
+					this.DecCount_AsKind();
+				}
 			}
 		}
 
