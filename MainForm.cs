@@ -365,89 +365,19 @@ namespace Ron_BAN
 		// テスト１
 		void m_btn_test_1_Click(object sender, EventArgs e)
 		{
-			FileTest.Crt_TestData();
-			FileTest.Save_toFile();
 		}
 
 		// ------------------------------------------------------------------------------------
 		// テスト２
 		void m_btn_test_2_Click(object sender, EventArgs e)
 		{
-			FileTest.Load_fromFile();
 		}
 
 		// ------------------------------------------------------------------------------------
 		// テスト３
 		void m_btn_test_3_Click(object sender, EventArgs e)
 		{
-			try
-			{
-				MainForm.WriteMsg("--- Before ThrowTest() ---\r\n");
-				ThrowTest();
-				MainForm.WriteMsg("--- After Start ---\r\n");
-			}
-			catch (Exception ex)
-			{
-				MainForm.WriteMsg($"m_btn_test_3_Click::catch()： {ex.ToString()}");
-			}
 		}
-
-		static void ThrowTest()
-		{
-			try
-			{
-				MainForm.WriteMsg("--- Before throw exception ---\r\n");
-				throw new Exception("throws in ThrowTest()\r\n");
-			}
-			finally
-			{
-				MainForm.WriteMsg("ThrowTest::finally()\r\n");
-			}
-		}
-
-		// ------------------------------------------------------------------------------------
-		static void Test_Read_JsonFile()
-		{
-			try
-			{
-				Read_JsonFile(@"Y:\test_code\_sample1-1_knk.json");
-			}
-			catch (Exception ex)
-			{
-				MainForm.WriteStatus(ex.ToString());
-			}
-		}
-
-		static void Read_JsonFile(string filepath)
-		{
-			using (FileStream fs = File.OpenRead(filepath))
-			{
-				int bytes_file = (int)fs.Length;
-				byte[] buf_utf8 = new byte[bytes_file];
-				fs.Read(buf_utf8, 0, bytes_file);
-
-				StringBuilder sb = DB_cur.Anlz_RoomJSON(buf_utf8);
-				if (sb.Length > 0)
-				{
-					MainForm.WriteStatus(sb.ToString());
-				}
-			}
-		}
-
-		/*
-		void m_btn_proxy_Click(object sender, EventArgs e)
-		{
-			try
-			{
-				Drrr_Proxy.Init();
-				Drrr_Proxy.Get_index_html();
-			}
-			catch (Exception ex)
-			{
-				MainForm.WriteStatus(ex.ToString());
-			}
-		}
-		*/
 	}
 }
 
