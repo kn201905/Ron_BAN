@@ -271,7 +271,6 @@ namespace Ron_BAN
 			public BanByUid_Task(string uid_to_ban)
 			{
 				m_http_req = new HttpRequestMessage(HttpMethod.Post, ms_uri_ban);
-				// m_http_req.Headers.Add("Accept", "*,*");  // 例外が発生する、、、
 				m_http_req.Headers.Add("X-Requested-With", "XMLHttpRequest");
 				m_http_req.Headers.Referrer = ms_uri_referer_ban;
 
@@ -290,6 +289,54 @@ namespace Ron_BAN
 				{ throw new Exception("!!! 未知の不具合：「ms_num_ban_task <= 0」"); }
 
 				ms_num_ban_task--;
+			}
+		}
+
+		// ------------------------------------------------------------------------------------
+
+		public static class Chg_RmLimit_Task_Factory
+		{
+			const uint MAX_num_task = 1;
+
+			public static HttpTask Create(int num_room_limit)
+			{
+				if (msb_Discnct_Started)
+				{ return new Err_HttpTask("+++ 切断処理が開始されました。Chg_RmLimit() はキャンセルされました。\r\n"); }
+
+				if (Chg_RmLimit.ms_num_task >= MAX_num_task)
+				{ return new Err_HttpTask("+++ Chg_RmLimit() が連続して実行されました。Chg_RmLimit() はキャンセルされました。\r\n"); }
+
+				return new Chg_RmLimit(num_room_limit);
+			}
+		}
+
+		class Chg_RmLimit : Mid_HttpTask
+		{
+			static Uri ms_uri = new Uri("http://drrrkari.com/room/?ajax=1");
+			static Uri ms_uri_referer = new Uri("http://drrrkari.com/room/");
+			static MediaTypeHeaderValue ms_content_type
+				= new MediaTypeHeaderValue("application/x-www-form-urlencoded") { CharSet = "UTF-8" };
+
+			public Chg_RmLimit(int num_room_limit)
+			{
+				m_http_req = new HttpRequestMessage(HttpMethod.Post, ms_uri);
+				m_http_req.Headers.Add("X-Requested-With", "XMLHttpRequest");
+				m_http_req.Headers.Referrer = ms_uri_referer;
+
+				m_http_req.Content = new ByteArrayContent(Encoding.UTF8.GetBytes($"room_limit={num_room_limit}"));
+				m_http_req.Content.Headers.ContentType = ms_content_type;
+
+				ms_num_task++;
+			}
+
+			// -----------------------------------------------
+			public static int ms_num_task = 0;
+			public override void DecCount_AsKind()
+			{
+				if (ms_num_task <= 0)
+				{ throw new Exception("!!! 未知の不具合：「ms_num_task <= 0」"); }
+
+				ms_num_task--;
 			}
 		}
 	}
