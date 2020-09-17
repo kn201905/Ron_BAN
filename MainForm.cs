@@ -23,10 +23,9 @@ namespace Ron_BAN
 		bool mb_timer_enabled = false;
 		System.Timers.Timer m_Timer_getJSON = null;
 		uint m_timer_elapsed_msec = 0;
-		uint m_timer_interval_msec = 2000;
+		uint m_timer_interval_msec = 1700;
 
-		bool mb_timer_delayBan_enabled = false;
-		System.Timers.Timer m_Timer_delayBAN = null;
+//System.Timers.Timer m_Timer_delayBAN = null;
 		const int MSEC_timer_intvl_delayBAN = 5000;
 
 		const uint c_SEC_intvl_confirmation = 20 * 60;  // 20分毎に接続確認
@@ -42,7 +41,7 @@ namespace Ron_BAN
 
 			m_Btn_connect.Font = ms_meiryo_Ke_P_9pt;
 			m_Btn_postMsg.Font = ms_meiryo_Ke_P_9pt;
-			m_Btn_getJSON.Font = ms_meiryo_Ke_P_9pt;
+			m_Btn_Chg_RmLimit.Font = ms_meiryo_Ke_P_9pt;
 			m_Btn_timer_JSON.Font = ms_meiryo_Ke_P_9pt;
 
 			m_TBox_PostMsg.Font = ms_meiryo_Ke_P_9pt;
@@ -74,12 +73,12 @@ namespace Ron_BAN
 			m_Timer_getJSON.Elapsed += OnTimer_GetJSON;
 			m_Timer_getJSON.AutoReset = true;
 			m_Timer_getJSON.SynchronizingObject = this;
-
+/*
 			m_Timer_delayBAN = new System.Timers.Timer(MSEC_timer_intvl_delayBAN);
 			m_Timer_delayBAN.Elapsed += OnTimer_delayBAN;
 			m_Timer_delayBAN.AutoReset = true;
 			m_Timer_delayBAN.SynchronizingObject = this;
-
+*/
 			ms_RBox_status = m_RBox_status;
 			m_RBox_status.SelectionTabs = new int[] { 30 };
 			m_RBox_status.LanguageOption = RichTextBoxLanguageOptions.UIFonts;  // 行間を狭くする
@@ -240,11 +239,12 @@ namespace Ron_BAN
 		}
 
 		// ------------------------------------------------------------------------------------
-		void OnClk_GetJSON_Btn(object sender, EventArgs e)
+/*
+		void OnClk_Btn_GetJSON(object sender, EventArgs e)
 		{
 			GetJSON(DateTime.Now);
 		}
-
+*/
 		void OnClk_Btn_Toggle_Timer(object sender, EventArgs e)
 		{
 			if (mb_timer_enabled)
@@ -307,7 +307,7 @@ namespace Ron_BAN
 		async void GetJSON(DateTime datetime)
 		{
 			if (mb_getJSON) { return; }
-			m_Btn_getJSON.Enabled = false;
+			m_Btn_connect.Enabled = false;
 			mb_getJSON = true;
 
 			// --------------------------------------------------
@@ -319,7 +319,7 @@ namespace Ron_BAN
 				await getJSON_task.DoWork();
 
 				mb_getJSON = false;
-				m_Btn_getJSON.Enabled = true;
+				m_Btn_connect.Enabled = true;
 
 				if (getJSON_task.m_str_cancel != null)
 				{
@@ -333,7 +333,7 @@ namespace Ron_BAN
 			{
 				MainForm.WriteStatus(ex.ToString() + "\r\n");
 				mb_getJSON = false;
-				m_Btn_getJSON.Enabled = true;
+				m_Btn_connect.Enabled = true;
 				return;
 			}
 
@@ -345,6 +345,34 @@ namespace Ron_BAN
 				if (sb.Length > 0) { MainForm.WriteMsg(sb.ToString()); }
 
 				Update_BanCtrls();
+
+				// 新規入室者へのメッセージ処理
+				if (UInfo_onRoom.msb_dtct_new_usr)
+				{
+					UInfo_onRoom.msb_dtct_new_usr = false;
+
+					try
+					{
+						Drrr_Host2.HttpTask postmsg_task = Drrr_Host2.PostMsg_Task_Factory.Create(
+								"来室者用自動メッセージ：この部屋の趣旨は、以下の URL を参考にしてください。宜しくお願いします。");
+						await postmsg_task.DoWork();
+
+						if (postmsg_task.m_str_cancel != null)
+						{ throw new Exception(postmsg_task.m_str_cancel); }
+
+						await Task.Delay(750);
+
+						postmsg_task = Drrr_Host2.PostMsg_Task_Factory.Create("https://github.com/kn201905/Ron_BAN");
+						await postmsg_task.DoWork();
+
+						if (postmsg_task.m_str_cancel != null)
+						{ throw new Exception(postmsg_task.m_str_cancel); }
+					}
+					catch (Exception ex)
+					{
+						MainForm.WriteStatus($"!!! 来室者用メッセージの出力時にエラーが発生しました。\r\n{ex.ToString()}\r\n\r\n");
+					}
+				}
 			}
 			catch (Exception ex)
 			{
@@ -352,6 +380,33 @@ namespace Ron_BAN
 
 				File.WriteAllText(@"Z:err_" + datetime.ToString("HH_mm_ss_f") + ".json"
 										, Encoding.UTF8.GetString(bytes_utf8));
+			}
+		}
+
+		// ------------------------------------------------------------------------------------
+		async void OnClk_Btn_Chg_RmLimit(object sender, EventArgs e)
+		{
+			try
+			{
+				string str_num = m_TBox_num_RmLimit.Text;
+				int num_RmLimit = int.Parse(str_num);
+				if (num_RmLimit < 2) { num_RmLimit = 2; }
+				else if (num_RmLimit > 15) { num_RmLimit = 15; }
+
+				Drrr_Host2.HttpTask chg_RmLimit_task = Drrr_Host2.Chg_RmLimit_Task_Factory.Create(num_RmLimit);
+				await chg_RmLimit_task.DoWork();
+
+				if (chg_RmLimit_task.m_str_cancel != null)
+				{
+					MainForm.WriteStatus($"!!! 「Chg_RmLimit」がキャンセルされました。\r\n{chg_RmLimit_task.m_str_cancel}");
+					return;
+				}
+
+				MainForm.WriteStatus("+++ Chg_RmLimit 成功\r\n");
+			}
+			catch (Exception ex)
+			{
+				MainForm.WriteStatus(ex.ToString() + "\r\n");
 			}
 		}
 
