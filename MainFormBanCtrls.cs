@@ -1,7 +1,6 @@
 using System;
 using System.Windows.Forms;
 using System.Drawing;
-using System.Collections.Generic;
 
 namespace Ron_BAN
 {
@@ -26,7 +25,7 @@ namespace Ron_BAN
 		
 		class BanCtrl_GUI
 		{
-			public Button m_Btn_delay_ban = new Button();
+			public Button m_Btn_AI_talk = new Button();
 			public Button m_Btn_ban = new Button();
 			public TextBox m_TBox_info = new TextBox();
 
@@ -35,9 +34,9 @@ namespace Ron_BAN
 				m_ban_ctrl.OnClk_Btn_BAN();
 			}
 
-			public void OnClk_Btn_delay_ban(object sender, EventArgs e)
+			public void OnClk_Btn_AI_talk(object sender, EventArgs e)
 			{
-				m_ban_ctrl.OnClk_Btn_delay_ban();
+				m_ban_ctrl.OnClk_Btn_AI_talk();
 			}
 
 			// 未設定は 0、入室者は 正の数、退室者は 負の数
@@ -73,12 +72,12 @@ namespace Ron_BAN
 
 			// ban_ctrl に変更を行うときにコールされる関数
 			// 戻り値： 実際に登録された BanCtrl
-			public static BanCtrl Update_RoomUsr(BanCtrl pos_ctrl, int id_this_session, int idx_GUI, UInfo uinfo)
+			public static BanCtrl Update_RoomUsr(BanCtrl pos_ctrl, int id_this_session, BanCtrl_GUI ctrl_GUI, UInfo uinfo)
 			{
 				BanCtrl ctrl = pos_ctrl;
 				if (ctrl == ms_BanCtrl_bottom)
 				{
-					ctrl.Set_NewUInfo(id_this_session, idx_GUI, uinfo);
+					ctrl.Set_NewUInfo(id_this_session, ctrl_GUI, uinfo);
 				}
 				else
 				{
@@ -88,19 +87,19 @@ namespace Ron_BAN
 						if (ctrl_id_this_session == id_this_session)
 						{
 							// ユーザ情報はそのままでよい
-							ctrl.m_GUI = msa_BanCtrl_GUIs[idx_GUI];
+							ctrl.Draw_AsRoomUsr(ctrl_GUI);
 							break;
 						}
 
 						if (ctrl_id_this_session == 0)
 						{
-							ctrl.Set_NewUInfo(id_this_session, idx_GUI, uinfo);
+							ctrl.Set_NewUInfo(id_this_session, ctrl_GUI, uinfo);
 							break;
 						}
 						if (ctrl_id_this_session < 0)
 						{
 							ctrl = InsertFromLast(ctrl);
-							ctrl.Set_NewUInfo(id_this_session, idx_GUI, uinfo);
+							ctrl.Set_NewUInfo(id_this_session, ctrl_GUI, uinfo);
 							break;
 						}
 						if (ctrl_id_this_session > id_this_session)
@@ -112,19 +111,19 @@ namespace Ron_BAN
 				}
 
 				// GUI の表示を update する
-				ctrl.Draw_AsRoomUsr();
+//				ctrl.Draw_AsRoomUsr();
 				return ctrl;
 			}
 
 			// -----------------------------------------------------------
 			// ban_ctrl に変更を行うときにコールされる関数
 			// 戻り値： 実際に登録された BanCtrl
-			public static BanCtrl Update_ExitUsr(BanCtrl pos_ctrl, int id_this_session, int idx_GUI, int idx_eusr)
+			public static BanCtrl Update_ExitUsr(BanCtrl pos_ctrl, int id_this_session, BanCtrl_GUI ctrl_GUI, int idx_eusr)
 			{
 				BanCtrl ctrl = pos_ctrl;
 				if (ctrl == ms_BanCtrl_bottom)
 				{
-					ctrl.Set_NewExitUsr(id_this_session, idx_GUI, idx_eusr);
+					ctrl.Set_NewExitUsr(id_this_session, ctrl_GUI, idx_eusr);
 				}
 				else
 				{
@@ -134,13 +133,13 @@ namespace Ron_BAN
 						if (ctrl_id_this_session == id_this_session)
 						{
 							// ユーザ情報はそのままでよい
-							ctrl.m_GUI = msa_BanCtrl_GUIs[idx_GUI];
+							ctrl.Draw_AsExitUsr(ctrl_GUI);
 							break;
 						}
 
 						if (ctrl_id_this_session == 0)
 						{
-							ctrl.Set_NewExitUsr(id_this_session, idx_GUI, idx_eusr);
+							ctrl.Set_NewExitUsr(id_this_session, ctrl_GUI, idx_eusr);
 							break;
 						}
 						if (ctrl_id_this_session < 0)
@@ -150,7 +149,7 @@ namespace Ron_BAN
 									"!!! エラー検出： ctrl_id_this_session < id_this_session in BanCtrls_Ctrlr.Update_ExitUsr()"); }
 
 							ctrl = InsertFromLast(ctrl);
-							ctrl.Set_NewExitUsr(id_this_session, idx_GUI, idx_eusr);
+							ctrl.Set_NewExitUsr(id_this_session, ctrl_GUI, idx_eusr);
 							break;
 						}
 						ctrl = MoveToLast(ctrl);
@@ -158,7 +157,7 @@ namespace Ron_BAN
 				}
 
 				// GUI の表示を update する
-				ctrl.Draw_AsExitUsr();
+//				ctrl.Draw_AsExitUsr();
 				return ctrl;
 			}
 			
@@ -221,7 +220,8 @@ namespace Ron_BAN
 			public BanCtrl m_next = null;
 
 			public int m_id_this_session = 0;
-			public BanCtrl_GUI m_GUI = null;
+//			public BanCtrl_GUI m_GUI = null;
+			BanCtrl_GUI m_GUI = null;
 
 			// 以下はどちらか一方が有効となる
 			public UInfo m_uinfo = null;
@@ -231,13 +231,13 @@ namespace Ron_BAN
 			
 			public bool mb_Rgst_ban = false;
 			public bool mb_Exec_Ban = false;
-			public int m_count_down_delay_ban = -1;
+			public bool mb_AI_talk = false;
 
 			// -----------------------------------------------
-			public void Set_NewUInfo(int id_this_session, int idx_GUI, UInfo uinfo)
+			public void Set_NewUInfo(int id_this_session, BanCtrl_GUI ctrl_GUI, UInfo uinfo)
 			{
 				m_id_this_session = id_this_session;
-				m_GUI = msa_BanCtrl_GUIs[idx_GUI];
+				m_GUI = null;  // Draw_AsRoomUsr() で設定 & 描画を行う
 
 				m_uinfo = uinfo;
 				m_exit_unames = null;
@@ -245,14 +245,16 @@ namespace Ron_BAN
 
 				mb_Rgst_ban = uinfo.mb_to_ban_onAttend;
 				mb_Exec_Ban = false;
-				m_count_down_delay_ban = -1;
+				mb_AI_talk = false;
+
+				this.Draw_AsRoomUsr(ctrl_GUI);
 			}
 
 			// -----------------------------------------------
-			public void Set_NewExitUsr(int id_this_session, int idx_GUI, int idx_eusr)
+			public void Set_NewExitUsr(int id_this_session, BanCtrl_GUI ctrl_GUI, int idx_eusr)
 			{
 				m_id_this_session = id_this_session;
-				m_GUI = msa_BanCtrl_GUIs[idx_GUI];
+				m_GUI = null;  // Draw_AsExitUsr() で設定 & 描画を行う
 
 				m_uinfo = null;
 				m_exit_unames = string.Join(", ", ExitEip_onTalks.msa_unames_on_talks[idx_eusr]);
@@ -264,39 +266,48 @@ namespace Ron_BAN
 				{ mb_Rgst_ban = true; }
 
 				mb_Exec_Ban = false;
-				m_count_down_delay_ban = -1;
+				mb_AI_talk = false;
+
+				this.Draw_AsExitUsr(ctrl_GUI);
 			}
 
 			// -----------------------------------------------
-			public void Draw_AsRoomUsr()
+			public void Draw_AsRoomUsr(BanCtrl_GUI ctrl_GUI)
 			{
-				Button btn_ban = m_GUI.m_Btn_ban;
-				btn_ban.Text = m_uinfo.m_uname;
-				btn_ban.Enabled = true;
+				if (m_GUI == ctrl_GUI) { return; }
+
+				m_GUI = ctrl_GUI;
+				m_GUI.m_Btn_AI_talk.Enabled = true;
+				m_GUI.m_Btn_ban.Text = m_uinfo.m_uname;
+				m_GUI.m_Btn_ban.Enabled = true;
 
 				TextBox tbox_info = m_GUI.m_TBox_info;
 				tbox_info.Text = $"[{string.Join(", ", m_uinfo.m_unames_this_session)}] / {m_uinfo.m_uid.m_str_uid}";
 				tbox_info.Visible = true;
+				tbox_info.BackColor = Color.White;
 
-				if (m_count_down_delay_ban >= 0)
+				if (mb_AI_talk)
 				{
-					m_GUI.m_Btn_delay_ban.Enabled = false;
+					m_GUI.m_Btn_AI_talk.Text = "AI対応";
 					tbox_info.BackColor = Color.Orange;
 				}
 				else
 				{
-					m_GUI.m_Btn_delay_ban.Enabled = true;
-					if (mb_Rgst_ban)
-					{ tbox_info.BackColor = Color.HotPink; }
-					else
-					{ tbox_info.BackColor = Color.White; }
+					m_GUI.m_Btn_AI_talk.Text = "---";
 				}
+
+				if (mb_Rgst_ban)
+				{ tbox_info.BackColor = Color.HotPink; }
 			}
 
 			// -----------------------------------------------
-			public void Draw_AsExitUsr()
+			public void Draw_AsExitUsr(BanCtrl_GUI ctrl_GUI)
 			{
-				m_GUI.m_Btn_delay_ban.Enabled = false;
+				if (m_GUI == ctrl_GUI) { return; }
+
+				m_GUI = ctrl_GUI;
+				m_GUI.m_Btn_AI_talk.Enabled = false;
+				m_GUI.m_Btn_AI_talk.Text = "---";
 
 				Button btn_ban = m_GUI.m_Btn_ban;
 				btn_ban.Text = m_exit_unames;
@@ -334,8 +345,8 @@ namespace Ron_BAN
 				mb_Rgst_ban = true;
 				mb_Exec_Ban = true;
 
+				m_GUI.m_Btn_AI_talk.Enabled = false;
 				m_GUI.m_Btn_ban.Enabled = false;
-				m_GUI.m_Btn_delay_ban.Enabled = false;
 
 				if (m_id_this_session > 0)
 				{
@@ -358,8 +369,8 @@ namespace Ron_BAN
 					if (ban_usr_task.m_str_cancel != null)
 					{
 						MainForm.WriteStatus($"!!! 「BanUsr」がキャンセルされました。\r\n{ban_usr_task.m_str_cancel}");
+						m_GUI.m_Btn_AI_talk.Enabled = true;
 						m_GUI.m_Btn_ban.Enabled = true;
-						m_GUI.m_Btn_delay_ban.Enabled = true;
 						return;
 					}
 
@@ -374,8 +385,8 @@ namespace Ron_BAN
 					if (ret_str.Contains("強制退室") == false)
 					{
 						// 強制退室失敗
+						m_GUI.m_Btn_AI_talk.Enabled = true;
 						m_GUI.m_Btn_ban.Enabled = true;
-						m_GUI.m_Btn_delay_ban.Enabled = true;
 					}
 
 					MainForm.WriteStatus(ret_str);
@@ -391,9 +402,29 @@ namespace Ron_BAN
 			}
 
 			// -----------------------------------------------
-			public void OnClk_Btn_delay_ban()
+			public void OnClk_Btn_AI_talk()
 			{
-				MainForm.WriteStatus($"遅延BAN 機能は未実装です。-> [{m_uinfo.m_uname}]\r\n");
+				if (mb_AI_talk)
+				{
+					// AI talk 停止処理
+					mb_AI_talk = false;
+					m_GUI.m_Btn_AI_talk.Text = "---";
+					m_GUI.m_TBox_info.BackColor = Color.White;
+
+					DB_cur.Clear_Uid_AI_talked();
+				}
+				else
+				{
+					// AI talk 開始処理
+					mb_AI_talk = true;
+					m_GUI.m_Btn_AI_talk.Text = "AI対応";
+					m_GUI.m_TBox_info.BackColor = Color.Orange;
+
+					DB_cur.Set_Uid_AI_talked(m_uinfo.m_uid.m_str_uid);
+					AI_talk.Set_TgtUname(m_uinfo.m_uname);
+
+					AI_talk.Greet_toTgt();
+				}
 			}
 		}
 
@@ -401,7 +432,7 @@ namespace Ron_BAN
 		void Create_BanCtrls_GUI()
 		{
 			int top_btn = TOP_Btn_BAN;
-			Size size_delay_btn = new Size(WIDTH_Btn_delayBAN, HEIGHT_Btn_BAN);
+			Size size_ai_talk = new Size(WIDTH_Btn_delayBAN, HEIGHT_Btn_BAN);
 			Size size_tbox = new Size(WIDTH_TBox_BAN, HEIGHT_Btn_BAN);
 			Size size_btn = new Size(WIDTH_Btn_BAN, HEIGHT_Btn_BAN);
 
@@ -411,18 +442,18 @@ namespace Ron_BAN
 				msa_BanCtrl_GUIs[idx] = btn_ctrl_GUI;
 
 				// ---------------------------
-				Button delay_btn = new Button();
+				Button btn_ai_talk = new Button();
 
-				delay_btn.Font = MainForm.ms_meiryo_Ke_P_8pt;
-				delay_btn.Location = new Point(LEFT_Btn_delayBAN, top_btn);
-				delay_btn.Size = size_delay_btn;
-				delay_btn.Text = "遅延ban";
-				delay_btn.Enabled = false;
-				delay_btn.UseVisualStyleBackColor = true;
-				delay_btn.Click += btn_ctrl_GUI.OnClk_Btn_delay_ban;
+				btn_ai_talk.Font = MainForm.ms_meiryo_Ke_P_8pt;
+				btn_ai_talk.Location = new Point(LEFT_Btn_delayBAN, top_btn);
+				btn_ai_talk.Size = size_ai_talk;
+				btn_ai_talk.Text = "---";
+				btn_ai_talk.Enabled = false;
+				btn_ai_talk.UseVisualStyleBackColor = true;
+				btn_ai_talk.Click += btn_ctrl_GUI.OnClk_Btn_AI_talk;
 
-				splitContainer1.Panel1.Controls.Add(delay_btn);
-				msa_BanCtrl_GUIs[idx].m_Btn_delay_ban = delay_btn;
+				splitContainer1.Panel1.Controls.Add(btn_ai_talk);
+				msa_BanCtrl_GUIs[idx].m_Btn_AI_talk = btn_ai_talk;
 
 				// ---------------------------
 				Button btn = new Button();
@@ -473,7 +504,7 @@ namespace Ron_BAN
 
 				if (ban_ctrl_GUI.m_id_this_session != lead_id_this_session)
 				{
-					ban_ctrl = BanCtrls_Ctrlr.Update_RoomUsr(ban_ctrl, lead_id_this_session, idx, uinfo);
+					ban_ctrl = BanCtrls_Ctrlr.Update_RoomUsr(ban_ctrl, lead_id_this_session, ban_ctrl_GUI, uinfo);
 					ban_ctrl_GUI.m_id_this_session = lead_id_this_session;
 					ban_ctrl_GUI.m_ban_ctrl = ban_ctrl;
 				}
@@ -501,7 +532,7 @@ namespace Ron_BAN
 					
 					if (ban_ctrl_GUI.m_id_this_session != lead_id_this_session)
 					{
-						ban_ctrl = BanCtrls_Ctrlr.Update_ExitUsr(ban_ctrl, lead_id_this_session, idx_GUI, idx_eusr);
+						ban_ctrl = BanCtrls_Ctrlr.Update_ExitUsr(ban_ctrl, lead_id_this_session, ban_ctrl_GUI, idx_eusr);
 
 						ban_ctrl_GUI.m_id_this_session = lead_id_this_session;
 						ban_ctrl_GUI.m_ban_ctrl = ban_ctrl;
@@ -516,7 +547,8 @@ namespace Ron_BAN
 				BanCtrl_GUI ban_ctrl_GUI = msa_BanCtrl_GUIs[idx_GUI];
 				if (ban_ctrl_GUI.m_id_this_session == 0) { break; }
 
-				ban_ctrl_GUI.m_Btn_delay_ban.Enabled = false;
+				ban_ctrl_GUI.m_Btn_AI_talk.Text = "---";
+				ban_ctrl_GUI.m_Btn_AI_talk.Enabled = false;
 
 				ban_ctrl_GUI.m_Btn_ban.Text = "　---";
 				ban_ctrl_GUI.m_Btn_ban.Enabled = false;
@@ -540,12 +572,13 @@ namespace Ron_BAN
 				msa_BanCtrl_GUIs[ma_btn_idx_to_ban[i]].m_ban_ctrl.OnClk_Btn_BAN();
 			}
 			m_tmnt_btn_idx_to_ban = 0;
-		}
 
-		// ------------------------------------------------------------------------------------
-
-		void OnTimer_delayBAN(Object src, System.Timers.ElapsedEventArgs ev_time)
-		{
+			// AI_talk 対応ユーザがいたら、AI_talk に対応させる
+			if (DB_cur.msb_to_appear_AI_talk)
+			{
+				AI_talk.Talk_toTgt();
+				DB_cur.msb_to_appear_AI_talk = false;
+			}
 		}
 	}
 }
