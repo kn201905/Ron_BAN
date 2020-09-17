@@ -95,26 +95,41 @@ namespace Ron_BAN
 
 	class UInfo
 	{
-		public UInfo(ref Uid uid, string uname, ref Uencip encip)
+		public UInfo(ref Uid uid, string uname, ref Uencip encip, int id_this_session)
 		{
 			m_uid = uid;
 			m_uname = uname;
 			m_encip = encip;
-			mb_multi = false;
+			m_id_this_session = id_this_session;
 		}
 
 		public Uid m_uid;
 		public string m_uname;
 		public Uencip m_encip;
-		public bool mb_multi;
+		// Ban info を表示するために利用
+		public int m_id_this_session;
+
+		public bool mb_multi = false;
+		// Attend() で検出時に、eip to ban チェックに引っかかったことを表す
+		// このフラグは、Update_BanCtrl() でのみ利用される
+		public bool mb_to_ban_onAttend = false;
+
+		// このメンバ変数は「enter」メッセージを受けたときに更新される
+		// ゲストして入室してる場合は、null となっている場合もある
+		public List<string> m_unames_this_session = null;
 	}
 
 	// ------------------------------------------------------------------------------------
 
 	static class UInfo_onRoom
 	{
-		static List<UInfo> msa_uinfo =  new List<UInfo>();
+		// 新規入室者への処理
+		public static bool msb_dtct_new_usr = false;
+
+		public static List<UInfo> msa_uinfo =  new List<UInfo>();
 		static List<bool> msab_attend = new List<bool>();  // 情報更新にのみ利用
+
+		static int m_next_id_this_session = 1;
 
 		// ---------------------------------------------------
 		public static void Clear_AttendFlag()
@@ -123,6 +138,7 @@ namespace Ron_BAN
 		}
 
 		// ---------------------------------------------------
+		// 戻り値： ban すべきユーザであった場合、true が返される
 		public static void Attend(ref Uid uid, string uname, ref Uencip encip)
 		{
 			int idx_uid = -1;
@@ -133,18 +149,26 @@ namespace Ron_BAN
 
 			if (idx_uid < 0)
 			{
-				msa_uinfo.Add(new UInfo(ref uid, uname, ref encip));
+				// 新規ユーザを検出したときの処理
+				msb_dtct_new_usr = true;
+
+				UInfo new_uinfo = new UInfo(ref uid, uname, ref encip, m_next_id_this_session);
+				msa_uinfo.Add(new_uinfo);
+				m_next_id_this_session++;
 				msab_attend.Add(true);
+
+				// 新規登録時にのみ、eip to ban チェックを行う
+				if (DB_static.IsBanned(encip.m_str_encip))
+				{
+					new_uinfo.mb_to_ban_onAttend = true;
+				}
+				if (uname.StartsWith("ロン"))
+				{
+					new_uinfo.mb_to_ban_onAttend = true;
+				}
 			}
 			else
 			{
-				// 念のための確認
-				if (msa_uinfo[idx_uid].m_uname != uname)
-				{ throw new Exception("!!! 未知の不具合を検出　「msa_uinfo[idx_uid].m_uname != uname」"); }
-
-				if (msa_uinfo[idx_uid].m_encip.IsEqualTo(ref encip) == false)
-				{ throw new Exception("!!! 未知の不具合を検出　「msa_uinfo[idx_uid].m_encip.IsEqualTo(ref encip) == false」"); }
-
 				msab_attend[idx_uid] = true;
 			}
 		}
@@ -198,6 +222,16 @@ namespace Ron_BAN
 
 			return msa_uinfo[idx_uinfo].mb_multi;
 		}
+
+		// ---------------------------------------------------
+		public static void Set_unames_this_session_by_enter_msg(string str_eip, List<string> unames)
+		{
+			foreach (UInfo uinfo in msa_uinfo)
+			{
+				if (uinfo.m_encip.IsEqualTo(str_eip) == true)
+				{ uinfo.m_unames_this_session = unames; }
+			}
+		}
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////
@@ -250,11 +284,14 @@ namespace Ron_BAN
 
 	static class ExitEip_onTalks
 	{
-		enum ExitUsr_Stt : byte { EN_OnTalksFlag = 1, EN_Banned = 2 }
+		public enum ExitUsr_Stt : byte { EN_OnTalksFlag = 1, EN_Regist_BAN = 2 }
 
-		static List<string> msa_encip_on_talks = new List<string>();
-		static List<List<string>> msa_unames_on_talks = new List<List<string>>();  // talk 上の unames
-		static List<ExitUsr_Stt> msa_flags = new List<ExitUsr_Stt>();
+		public static List<string> msa_encip_on_talks = new List<string>();
+		public static List<List<string>> msa_unames_on_talks = new List<List<string>>();  // talk 上の unames
+		public static List<ExitUsr_Stt> msa_flags = new List<ExitUsr_Stt>();
+		public static List<int> msa_id_this_session = new List<int>();
+
+		static int m_next_id_this_session = -1;
 
 		// ---------------------------------------------------
 		public static void Clear_OnTalksFlag()
@@ -271,7 +308,15 @@ namespace Ron_BAN
 			{
 				msa_encip_on_talks.Add(encip);
 				msa_unames_on_talks.Add(DB_cur.NewStringList(uname));
-				msa_flags.Add(ExitUsr_Stt.EN_OnTalksFlag);
+
+				// 新規登録時にのみ encip to ban チェックを行う
+				ExitUsr_Stt exitustt = ExitUsr_Stt.EN_OnTalksFlag;
+				if (DB_static.IsBanned(encip))
+				{ exitustt = ExitUsr_Stt.EN_OnTalksFlag | ExitUsr_Stt.EN_Regist_BAN; }
+				msa_flags.Add(exitustt);
+
+				msa_id_this_session.Add(m_next_id_this_session);
+				m_next_id_this_session--;
 
 				return msa_encip_on_talks.Count - 1;
 			}
@@ -280,7 +325,7 @@ namespace Ron_BAN
 				int name_idx = msa_unames_on_talks[eidx].IndexOf(uname);
 				if (name_idx < 0)
 				{
-					msa_unames_on_talks[eidx].Add(uname);
+					msa_unames_on_talks[eidx].Insert(0, uname);
 				}
 				msa_flags[eidx] |= ExitUsr_Stt.EN_OnTalksFlag;
 
@@ -299,6 +344,7 @@ namespace Ron_BAN
 					msa_encip_on_talks.RemoveAt(idx);
 					msa_unames_on_talks.RemoveAt(idx);
 					msa_flags.RemoveAt(idx);
+					msa_id_this_session.RemoveAt(idx);
 				}
 			}
 		}
@@ -308,6 +354,15 @@ namespace Ron_BAN
 		{
 			return msa_unames_on_talks[eidx];
 		}
+
+		// ---------------------------------------------------
+		public static void Regist_to_BAN(string eip_to_ban)
+		{
+			int eidx = msa_encip_on_talks.IndexOf(eip_to_ban);
+			if (eidx < 0) { return; }
+
+			msa_flags[eidx] |= ExitUsr_Stt.EN_Regist_BAN;
+		}
 	}
 	
 	///////////////////////////////////////////////////////////////////////////////////////
@@ -315,13 +370,25 @@ namespace Ron_BAN
 
 	static class DB_cur
 	{
+		public static bool msb_to_appear_AI_talk = false;
+		static string ms_str_Uid_AI_talked = null;
+		public static void Set_Uid_AI_talked(string str_uid)
+		{
+			ms_str_Uid_AI_talked = str_uid;
+			ms_time_for_AI_talk = ms_time_latest;
+		}
+		public static void Clear_Uid_AI_talked() { ms_str_Uid_AI_talked = null; }
+
+
 		static StringBuilder ms_ret_sb = new StringBuilder(256);  // 初期値は後ほど調整、、、
 
 		static List<string> msa_eip = new List<string>();
-		static List<List<string>> msa_unames =  new List<List<string>>();
-		static List<bool> msab_new_user = new List<bool>();
+		static List<List<string>> msa_unames_this_session =  new List<List<string>>();
+		static List<bool> msab_disp_new_user = new List<bool>();  //「新規検出」の表示の判断のみに利用
 
+		static ulong ms_time_latest = 0;
 		static ulong ms_time_for_msgid = 0;
+		static ulong ms_time_for_AI_talk = 0;
 
 		public static StringBuilder Anlz_RoomJSON(byte[] buf_utf8)
 		{
@@ -354,7 +421,6 @@ namespace Ron_BAN
 			{
 				if (type_lead != JsonTokenType.StartArray)
 				{ throw new Exception("!!! JSON のパースに失敗しました。"); }
-
 				// users が配列型の場合の処理
 				while (true)
 				{
@@ -444,14 +510,14 @@ namespace Ron_BAN
 			{
 				// 現セッションで新規登録の eip
 				msa_eip.Add(uencip.m_str_encip);
-				msa_unames.Add(NewStringList(str_uname));
-				msab_new_user.Add(true);
+				msa_unames_this_session.Add(NewStringList(str_uname));
+				msab_disp_new_user.Add(true);
 			}
 			else
 			{
 				// 現セッションで登録済みの eip
 				// 新規の uname であれば、記録しておく
-				var unames = msa_unames[eidx];
+				var unames = msa_unames_this_session[eidx];
 				if (unames.IndexOf(str_uname) < 0)
 				{
 					unames.Add(str_uname);
@@ -478,6 +544,7 @@ namespace Ron_BAN
 			string str_eip = null;
 			string str_uname = null;
 			string str_msgid = null;
+			string str_uid = null;
 			ulong val_time = 0;
 			MsgType msg_type = MsgType.EN_None;
 
@@ -504,7 +571,8 @@ namespace Ron_BAN
 
 					if (str_key == "encip") { str_eip = str_value; }
 					else if (str_key == "name") { str_uname = str_value; }
-					else if (str_key == "id" ) { str_msgid = str_value; }
+					else if (str_key == "id") { str_msgid = str_value; }
+					else if (str_key == "uid") { str_uid = str_value; }
 					else if (str_key == "type")
 					{
 						if (str_value == "enter") { msg_type = MsgType.EN_Enter; }
@@ -518,32 +586,54 @@ namespace Ron_BAN
 				throw new Exception("!!! JSON のパースに失敗しました。");
 			}
 
+			// ms_time_latest の更新
+			if (val_time > ms_time_latest)
+			{ ms_time_latest = val_time; }
+
+			// msb_to_appear_AI_talk のチェック
+			if (val_time > ms_time_for_AI_talk)
+			{
+/*
+				MainForm.WriteStatus($"val_time -> {val_time}\r\n");
+				MainForm.WriteStatus($"ms_time_for_AI_talk -> {ms_time_for_AI_talk}\r\n");
+				if (str_msgid != null)
+				{ MainForm.WriteStatus($"str_msgid -> {str_msgid}\r\n"); }
+*/
+				if (ms_str_Uid_AI_talked != null && str_uid != null && str_uid == ms_str_Uid_AI_talked)
+				{ msb_to_appear_AI_talk = true; }
+
+				ms_time_for_AI_talk = val_time;
+			}
+
+
 			if (msg_type == MsgType.EN_None) { return; }
+			// 以下では、msg_type は EN_Enter or EN_Exit
 
 			if (str_eip == null || str_uname == null || str_msgid == null || val_time == 0)
 			{ throw new Exception("!!! JSON のパースに失敗しました。"); }
 
 			int eidx = msa_eip.IndexOf(str_eip);
 			List<string> unames_this_session = null;
-			bool b_new_user = false;
+			bool b_disp_new_user = false;
 
 			if (eidx < 0)
 			{
+				// Chk_NextUser() で検出できなかった eip ユーザの場合、ここにくる
 				// bot がホストであれば、ここには来ないはず？（bot がゲストのときも考慮）
 				msa_eip.Add(str_eip);
 				unames_this_session = NewStringList(str_uname);
-				msa_unames.Add(unames_this_session);
-				b_new_user = true;
-				msab_new_user.Add(true);
+				msa_unames_this_session.Add(unames_this_session);
+				b_disp_new_user = true;
+				msab_disp_new_user.Add(true);
 
 				eidx = msa_eip.Count - 1;
 			}
 			else
 			{
-				unames_this_session = msa_unames[eidx];
+				unames_this_session = msa_unames_this_session[eidx];
 				if (unames_this_session.IndexOf(str_uname) < 0) { unames_this_session.Add(str_uname); }
 
-				b_new_user = msab_new_user[eidx];
+				b_disp_new_user = msab_disp_new_user[eidx];
 			}
 
 			if (msg_type == MsgType.EN_Enter)
@@ -551,23 +641,27 @@ namespace Ron_BAN
 				if (val_time < ms_time_for_msgid) { return; }
 				if (MsgID_Chkr.IsNew_MsgID(str_msgid) == false) { return; }
 
+				// str_msgid は、まだ未処理の msg であることに留意
 				// Enter メッセージの処理（再入室ユーザ、多窓ユーザの処理を行う）
-				if (b_new_user)
+				if (b_disp_new_user)
 				{
-					ms_ret_sb.Append("・新規検出");
-					msab_new_user[eidx] = false;
+					ms_ret_sb.Append("新規検出");
+					msab_disp_new_user[eidx] = false;  //「新規検出」は表示したため、フラグを下ろしておく
 				}
 				else
 				{
-					ms_ret_sb.Append("・再入室者");
+					ms_ret_sb.Append("---再入室者---");
 				}
 
 				if (UInfo_onRoom.IsMultiUser(str_eip))
 				{
-					ms_ret_sb.Append(" ★★ 多窓ユーザ ★★");
+					ms_ret_sb.Append("★★★多窓ユーザ★★★");
 				}
 
-				ms_ret_sb.Append($" [{str_uname}] / [{string.Join(", ", unames_this_session)}]\r\n{str_eip}\r\n\r\n");
+				ms_ret_sb.Append($" [{str_uname}] / [{string.Join(", ", unames_this_session)}]\r\n\t{str_eip}\r\n\r\n");
+
+				// UInfo_onRoom に m_unames_this_session の情報を付加する
+				UInfo_onRoom.Set_unames_this_session_by_enter_msg(str_eip, unames_this_session);
 			}
 			else
 			{
@@ -578,13 +672,12 @@ namespace Ron_BAN
 				if (val_time < ms_time_for_msgid) { return; }
 				if (MsgID_Chkr.IsNew_MsgID(str_msgid) == false) { return; }
 
-				ms_ret_sb.Append($"・退室者 [{string.Join(", ", ExitEip_onTalks.GetUnames(eidx_EUser))}] / "
+				ms_ret_sb.Append($"退室者 [{string.Join(", ", ExitEip_onTalks.GetUnames(eidx_EUser))}] / "
 						+ $"[{string.Join(", ", unames_this_session)}]\r\n"
-						+ $"{str_eip}\r\n\r\n");
+						+ $"\t{str_eip}\r\n\r\n");
 			}
 
 			ms_time_for_msgid = val_time;
 		}
 	}
 }
-
